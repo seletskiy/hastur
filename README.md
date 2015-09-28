@@ -22,7 +22,7 @@ https://aur4.archlinux.org/packages/hastur/
 hastur is also go-gettable:
 
 ```
-go git github.com/seletskiy/hastur
+go get github.com/seletskiy/hastur
 ```
 
 # Usage
