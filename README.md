@@ -1,4 +1,4 @@
-![hastur](https://cloud.githubusercontent.com/assets/674812/10144297/6729d5e0-660c-11e5-9ec7-963fd557b23a.png)
+![hastur](https://cloud.githubusercontent.com/assets/674812/10144792/fadcbd28-660e-11e5-8569-894e874cff14.png)
 
 hastur is a tool for launching systemd-nspawn containers without need of manual
 configuration.
