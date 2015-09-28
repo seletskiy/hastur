@@ -11,6 +11,18 @@ running local set of trusted containers.
 
 ![gif](https://cloud.githubusercontent.com/assets/674812/10140037/37f12ea2-65f5-11e5-90c7-eb18e6a9b37b.gif)
 
+# Motivation
+
+systemd-nspawn is useful tool, which can create and run lightweight
+containers without any additional software, because it's out-of-the-box
+functionality available in systemd.
+
+But it requires a some configuration to run working container, like
+managing network, downloading and extracting packages.
+
+hastur offers all configuration hidden in it's implementation, that will
+make possible to run fully-configured systemd-nspawn containers in seconds.
+
 # Installation
 
 # archlinux
