@@ -16,6 +16,8 @@ running local set of trusted containers.
 # archlinux
 hastur is available for Arch Linux (for now, only) through AUR:
 
+https://aur4.archlinux.org/packages/hastur/
+
 # go get
 hastur is also go-gettable:
 
