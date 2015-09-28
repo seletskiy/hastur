@@ -3,7 +3,7 @@
 hastur is a tool for launching systemd-nspawn containers without need of manual
 configuration.
 
-It will setup networking, base root fs and even overlay fs for containers for
+It will setup networking, base root FS and even overlay FS for containers for
 you.
 
 Primary usecase for hastur is supporting testcases for distributed systems and
