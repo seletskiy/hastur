@@ -76,7 +76,17 @@ func mountOverlay(lower, upper, work, target string) error {
 }
 
 func mountNetworkNamespace(PID int, target string) error {
-	bindTarget := filepath.Join("/var/run/netns", target)
+	netnsDir := "/var/run/netns"
+	if _, err := os.Stat(netnsDir); os.IsNotExist(err) {
+		err := os.Mkdir(netnsDir, 0755)
+		if err != nil {
+			return fmt.Errorf(
+				"can't create dir '%s': %s", netnsDir, err,
+			)
+		}
+	}
+
+	bindTarget := filepath.Join(netnsDir, target)
 
 	err := ioutil.WriteFile(bindTarget, []byte{}, 0644)
 	if err != nil {
