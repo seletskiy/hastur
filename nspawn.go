@@ -72,6 +72,8 @@ func nspawn(
 		append(args, commandLine...)...,
 	)
 
+	command.Env = []string{}
+
 	command.Stdin = os.Stdin
 	command.Stdout = os.Stdout
 	command.Stderr = os.Stderr
