@@ -6,7 +6,7 @@ import "path/filepath"
 import "strings"
 
 func installPackages(target string, packages []string) error {
-	args := []string{"-d", target}
+	args := []string{"-c", "-d", target}
 	command := exec.Command("pacstrap", append(args, packages...)...)
 
 	output, err := command.CombinedOutput()
