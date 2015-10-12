@@ -164,3 +164,7 @@ sudo hastur -r alpha-centauri -Q
 
 The first one will list only the `earth` and `moon` containers, and the second
 will only list the `a`, `b` and `c` containers.
+
+# License
+
+MIT.
