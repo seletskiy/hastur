@@ -1,17 +1,23 @@
 package main
 
-import "io/ioutil"
-import "os/exec"
-import "path/filepath"
-import "strings"
+import (
+	"io/ioutil"
+	"os"
+	"os/exec"
+	"path/filepath"
+	"strings"
+)
 
 func installPackages(target string, packages []string) error {
 	args := []string{"-c", "-d", target}
 	command := exec.Command("pacstrap", append(args, packages...)...)
 
-	output, err := command.CombinedOutput()
+	command.Stdout = os.Stderr
+	command.Stderr = os.Stderr
+
+	err := command.Run()
 	if err != nil {
-		return formatExecError(command, err, output)
+		return formatExecError(command, err, nil)
 	}
 
 	err = ioutil.WriteFile(filepath.Join(target, ".packages"), []byte(
