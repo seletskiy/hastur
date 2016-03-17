@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"io/ioutil"
+	"log"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -13,13 +14,13 @@ func nspawn(
 	storageEngine storage,
 	rootDir, baseDir, containerName string, bridge string,
 	networkAddress string,
-	ephemeral bool,
+	ephemeral bool, keepFailed bool,
 	commandLine []string,
-) error {
+) (err error) {
 	containerDir := filepath.Join(rootDir, "containers", containerName)
 	containerRoot := filepath.Join(containerDir, ".nspawn.root")
 
-	err := storageEngine.Merge(
+	err = storageEngine.Merge(
 		baseDir, filepath.Join(containerDir, "root"), containerRoot,
 	)
 
@@ -35,8 +36,27 @@ func nspawn(
 		)
 	}
 
+	var execErr error
+
 	if ephemeral {
-		defer removeContainerDir(containerDir)
+		defer func() {
+			if execErr != nil && keepFailed {
+				return
+			}
+
+			removeErr := removeContainerDir(containerDir)
+			if removeErr != nil {
+				if err == nil {
+					err = removeErr
+					return
+				}
+
+				log.Println(
+					"ERROR: can't remove container directory %s: %s",
+					containerDir, err,
+				)
+			}
+		}()
 	}
 
 	defer umount(containerRoot)
@@ -110,5 +130,6 @@ func nspawn(
 		return fmt.Errorf("can't write to control pipe: %s", err)
 	}
 
-	return command.Wait()
+	execErr = command.Wait()
+	return execErr
 }
