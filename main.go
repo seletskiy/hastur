@@ -47,6 +47,7 @@ Options:
                      If bridge does not exists, it will be automatically
                      created.
                      [default: br0:10.0.0.1/8]
+      -t             Use host network instead of using bridge.
       -s <storage>   Use specified storageSpec backend for container base images
                      and containers themselves. By default, overlayfs will be
                      used to provide COW for base system. If overlayfs is not
@@ -65,7 +66,7 @@ Options:
                      generated name will be used and container will be
                      considered ephemeral, e.g. will be destroyed on <command>
                      exit.
-      -a <address>   Use specified  IP address/netmask. If not specified,
+      -a <address>   Use specified IP address/netmask. If not specified,
                      automatically generated adress from 10.0.0.0/8 will
                      be used.
       -f             Force installing packages even if cached version exists.
@@ -244,6 +245,7 @@ func createAndStart(args map[string]interface{}) error {
 		keep              = args["-k"].(bool)
 		keepFailed        = args["-e"].(bool)
 		copyingDir, _     = args["-x"].(string)
+		hostNetwork       = args["-t"].(bool)
 	)
 
 	err := ensureRootDir(rootDir)
@@ -253,22 +255,25 @@ func createAndStart(args map[string]interface{}) error {
 		)
 	}
 
-	bridgeDevice, bridgeAddress := parseBridgeInfo(bridgeInfo)
-	err = ensureBridge(bridgeDevice)
-	if err != nil {
-		return fmt.Errorf(
-			"can't create bridge interface '%s': %s", bridgeDevice, err,
-		)
-	}
-
-	if bridgeAddress != "" {
-		err = setupBridge(bridgeDevice, bridgeAddress)
+	var bridgeDevice string
+	if !hostNetwork {
+		bridgeDevice, bridgeAddress := parseBridgeInfo(bridgeInfo)
+		err = ensureBridge(bridgeDevice)
 		if err != nil {
 			return fmt.Errorf(
-				"can't assign address on bridge '%s': %s",
-				bridgeDevice,
-				err,
+				"can't create bridge interface '%s': %s", bridgeDevice, err,
 			)
+		}
+
+		if bridgeAddress != "" {
+			err = setupBridge(bridgeDevice, bridgeAddress)
+			if err != nil {
+				return fmt.Errorf(
+					"can't assign address on bridge '%s': %s",
+					bridgeDevice,
+					err,
+				)
+			}
 		}
 	}
 
@@ -348,7 +353,8 @@ func createAndStart(args map[string]interface{}) error {
 
 	err = nspawn(
 		storageEngine,
-		rootDir, baseDir, containerName, bridgeDevice, networkAddress,
+		rootDir, baseDir, containerName,
+		hostNetwork, bridgeDevice, networkAddress,
 		ephemeral, keepFailed,
 		commandLine,
 	)

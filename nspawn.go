@@ -12,7 +12,9 @@ import (
 
 func nspawn(
 	storageEngine storage,
-	rootDir, baseDir, containerName string, bridge string,
+	rootDir, baseDir, containerName string,
+	hostNetwork bool,
+	bridge string,
 	networkAddress string,
 	ephemeral bool, keepFailed bool,
 	commandLine []string,
@@ -81,11 +83,14 @@ func nspawn(
 
 	args := []string{
 		"-M", containerName + containerSuffix,
-		"-n", "--network-bridge", bridge,
 		"-D", containerRoot,
-		bootstrapper,
-		controlPipeName,
 	}
+
+	if !hostNetwork {
+		args = append(args, "-n", "--network-bridge", bridge)
+	}
+
+	args = append(args, bootstrapper, controlPipeName)
 
 	command := exec.Command(
 		"systemd-nspawn",
@@ -113,17 +118,19 @@ func nspawn(
 		return err
 	}
 
-	err = mountNetworkNamespace(pid, containerName)
-	if err != nil {
-		return err
-	}
+	if !hostNetwork {
+		err = mountNetworkNamespace(pid, containerName)
+		if err != nil {
+			return err
+		}
 
-	err = setupNetwork(containerName, networkAddress)
-	if err != nil {
-		return err
-	}
+		err = setupNetwork(containerName, networkAddress)
+		if err != nil {
+			return err
+		}
 
-	defer umountNetorkNamespace(containerName)
+		defer umountNetorkNamespace(containerName)
+	}
 
 	err = ioutil.WriteFile(controlPipePath, []byte{}, 0)
 	if err != nil {
