@@ -102,6 +102,24 @@ func listContainers(rootDir string) ([]string, error) {
 	return containers, nil
 }
 
+func getContainerDir(rootDir string, containerName string) string {
+	return filepath.Join(rootDir, "containers", containerName)
+}
+
+func getContainerPrivateRoot(rootDir string, containerName string) string {
+	return filepath.Join(
+		getContainerDir(rootDir, containerName),
+		".nspawn.root",
+	)
+}
+
+func getContainerDataRoot(rootDir string, containerName string) string {
+	return filepath.Join(
+		getContainerDir(rootDir, containerName),
+		"root",
+	)
+}
+
 func getBaseDirs(rootDir string) ([]string, error) {
 	return filepath.Glob(filepath.Join(rootDir, "base.#*"))
 }

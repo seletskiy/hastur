@@ -19,11 +19,14 @@ func nspawn(
 	ephemeral bool, keepFailed bool,
 	commandLine []string,
 ) (err error) {
-	containerDir := filepath.Join(rootDir, "containers", containerName)
-	containerRoot := filepath.Join(containerDir, ".nspawn.root")
+	containerDir := getContainerDir(rootDir, containerName)
+
+	containerPrivateRoot := getContainerPrivateRoot(rootDir, containerName)
 
 	err = storageEngine.Merge(
-		baseDir, filepath.Join(containerDir, "root"), containerRoot,
+		baseDir,
+		getContainerDataRoot(rootDir, containerName),
+		containerPrivateRoot,
 	)
 
 	if err != nil {
@@ -61,16 +64,16 @@ func nspawn(
 		}()
 	}
 
-	defer umount(containerRoot)
+	defer umount(containerPrivateRoot)
 
 	bootstrapper := "/.hastur.exec"
-	err = installBootstrapExecutable(containerRoot, bootstrapper)
+	err = installBootstrapExecutable(containerPrivateRoot, bootstrapper)
 	if err != nil {
 		return err
 	}
 
 	controlPipeName := bootstrapper + ".control"
-	controlPipePath := filepath.Join(containerRoot, controlPipeName)
+	controlPipePath := filepath.Join(containerPrivateRoot, controlPipeName)
 
 	err = syscall.Mknod(controlPipePath, syscall.S_IFIFO|0644, 0)
 	if err != nil {
@@ -83,7 +86,7 @@ func nspawn(
 
 	args := []string{
 		"-M", containerName + containerSuffix,
-		"-D", containerRoot,
+		"-D", containerPrivateRoot,
 	}
 
 	if !hostNetwork {
