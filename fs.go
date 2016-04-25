@@ -135,5 +135,6 @@ func removeContainer(rootDir, containerName string) error {
 }
 
 func removeContainerDir(containerDir string) error {
-	return os.RemoveAll(containerDir)
+	cmd := exec.Command("rm", "-rf", containerDir)
+	return cmd.Run()
 }
