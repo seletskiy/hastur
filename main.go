@@ -46,6 +46,7 @@ Options:
     -h --help        Show this help.
     -r <root>        Root directory which will hold containers.
                       [default: /var/lib/hastur/]
+    -q               Be quiet. Do not report status messages from nspawn.
 
 Create options:
     -S               Create and start container.
@@ -313,6 +314,7 @@ func createAndStart(args map[string]interface{}) error {
 		keepFailed        = args["-e"].(bool)
 		copyingDir, _     = args["-x"].(string)
 		hostNetwork       = args["-t"].(bool)
+		quiet             = args["-q"].(bool)
 	)
 
 	err := ensureRootDir(rootDir)
@@ -362,7 +364,7 @@ func createAndStart(args map[string]interface{}) error {
 		if !keep {
 			ephemeral = true
 
-			if !keepFailed {
+			if !keepFailed && !quiet {
 				fmt.Println(
 					"Container is ephemeral and will be deleted after exit.",
 				)
@@ -406,7 +408,9 @@ func createAndStart(args map[string]interface{}) error {
 		_, baseIPNet, _ := net.ParseCIDR("10.0.0.0/8")
 		networkAddress = generateRandomNetwork(baseIPNet)
 
-		fmt.Printf("Container will use IP: %s\n", networkAddress)
+		if !quiet {
+			fmt.Printf("Container will use IP: %s\n", networkAddress)
+		}
 	}
 
 	if copyingDir != "" {
@@ -422,7 +426,7 @@ func createAndStart(args map[string]interface{}) error {
 		storageEngine,
 		rootDir, baseDir, containerName,
 		hostNetwork, bridgeDevice, networkAddress,
-		ephemeral, keepFailed,
+		ephemeral, keepFailed, quiet,
 		commandLine,
 	)
 

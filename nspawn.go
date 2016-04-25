@@ -16,7 +16,7 @@ func nspawn(
 	hostNetwork bool,
 	bridge string,
 	networkAddress string,
-	ephemeral bool, keepFailed bool,
+	ephemeral bool, keepFailed bool, quiet bool,
 	commandLine []string,
 ) (err error) {
 	containerDir := getContainerDir(rootDir, containerName)
@@ -91,6 +91,10 @@ func nspawn(
 
 	if !hostNetwork {
 		args = append(args, "-n", "--network-bridge", bridge)
+	}
+
+	if quiet {
+		args = append(args, "-q")
 	}
 
 	args = append(args, bootstrapper, controlPipeName)
