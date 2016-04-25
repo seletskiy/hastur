@@ -57,12 +57,27 @@ func (storage *overlayFSStorage) Init() error {
 }
 
 func (storage *overlayFSStorage) Merge(base, data, target string) error {
-	return mountOverlay(
+	err := mountOverlay(
 		base,
 		data,
 		filepath.Join(filepath.Dir(data), ".overlay.workdir"),
 		target,
 	)
+
+	if err != nil {
+		return fmt.Errorf(
+			"can't mount overlay fs [%s, %s, %s]: %s",
+			base, data, target, err,
+		)
+	}
+
+	return nil
+}
+
+func (storage *overlayFSStorage) Break(base, data, target string) error {
+	umount(target)
+
+	return nil
 }
 
 func (storage *overlayFSStorage) Destroy() error {

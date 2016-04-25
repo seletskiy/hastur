@@ -29,6 +29,14 @@ func nspawn(
 		containerPrivateRoot,
 	)
 
+	defer func() {
+		err = storageEngine.Break(
+			baseDir,
+			getContainerDataRoot(rootDir, containerName),
+			containerPrivateRoot,
+		)
+	}()
+
 	if err != nil {
 		return fmt.Errorf(
 			"storage can't create rootfs for nspawn: %s", err,
@@ -131,12 +139,12 @@ func nspawn(
 			return err
 		}
 
+		defer umountNetorkNamespace(containerName)
+
 		err = setupNetwork(containerName, networkAddress)
 		if err != nil {
 			return err
 		}
-
-		defer umountNetorkNamespace(containerName)
 	}
 
 	err = ioutil.WriteFile(controlPipePath, []byte{}, 0)
