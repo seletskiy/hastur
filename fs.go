@@ -128,9 +128,22 @@ func ensureRootDir(root string) error {
 	return os.MkdirAll(root, 0755)
 }
 
-func removeContainer(rootDir, containerName string) error {
+func removeContainer(rootDir, containerName string, force bool) error {
+	containerPrivateRoot := getContainerPrivateRoot(rootDir, containerName)
+	err := umount(containerPrivateRoot)
+	if err != nil {
+		err = fmt.Errorf(
+			"can't umount private root %s: %s", containerPrivateRoot, err,
+		)
+
+		if !force {
+			return err
+		}
+	}
+
 	containerDir := getContainerDir(rootDir, containerName)
-	err := removeContainerDir(containerDir)
+
+	err = removeContainerDir(containerDir)
 	if err != nil {
 		return fmt.Errorf("can't remove container: %s", err)
 	}

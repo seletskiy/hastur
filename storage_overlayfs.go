@@ -2,7 +2,6 @@ package main
 
 import (
 	"fmt"
-	"os/exec"
 	"path/filepath"
 	"strings"
 )
@@ -75,19 +74,11 @@ func (storage *overlayFSStorage) Merge(base, data, target string) error {
 }
 
 func (storage *overlayFSStorage) Break(base, data, target string) error {
-	umount(target)
-
-	return nil
+	return umount(target)
 }
 
 func (storage *overlayFSStorage) Destroy() error {
-	cmd := exec.Command("rm", "-rf", storage.rootDir)
-	output, err := cmd.CombinedOutput()
-	if err != nil {
-		return fmt.Errorf("can't remove root: %s\n%s", err, output)
-	}
-
-	return umount(storage.rootDir)
+	return nil
 }
 
 func (storage *overlayFSStorage) fixUnsupportedFS() error {

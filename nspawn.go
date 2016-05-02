@@ -29,14 +29,6 @@ func nspawn(
 		containerPrivateRoot,
 	)
 
-	defer func() {
-		err = storageEngine.Break(
-			baseDir,
-			getContainerDataRoot(rootDir, containerName),
-			containerPrivateRoot,
-		)
-	}()
-
 	if err != nil {
 		return fmt.Errorf(
 			"storage can't create rootfs for nspawn: %s", err,
@@ -72,7 +64,13 @@ func nspawn(
 		}()
 	}
 
-	defer umount(containerPrivateRoot)
+	defer func() {
+		err = storageEngine.Break(
+			baseDir,
+			getContainerDataRoot(rootDir, containerName),
+			containerPrivateRoot,
+		)
+	}()
 
 	bootstrapper := "/.hastur.exec"
 	err = installBootstrapExecutable(containerPrivateRoot, bootstrapper)
@@ -122,6 +120,8 @@ func nspawn(
 	if err != nil {
 		return err
 	}
+
+	defer command.Process.Kill()
 
 	_, err = ioutil.ReadFile(controlPipePath)
 	if err != nil {
