@@ -129,12 +129,23 @@ func ensureRootDir(root string) error {
 }
 
 func removeContainer(rootDir, containerName string) error {
-	containerDir := filepath.Join(rootDir, "containers", containerName)
+	containerDir := getContainerDir(rootDir, containerName)
+	err := removeContainerDir(containerDir)
+	if err != nil {
+		return fmt.Errorf("can't remove container: %s", err)
+	}
 
-	return removeContainerDir(containerDir)
+	return nil
 }
 
 func removeContainerDir(containerDir string) error {
 	cmd := exec.Command("rm", "-rf", containerDir)
-	return cmd.Run()
+	output, err := cmd.CombinedOutput()
+	if err != nil {
+		return fmt.Errorf(
+			"can't remove dir %s: %s\n%s", containerDir, err, output,
+		)
+	}
+
+	return nil
 }
