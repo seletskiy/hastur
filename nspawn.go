@@ -90,6 +90,8 @@ func nspawn(
 
 	defer os.Remove(controlPipePath)
 
+	defer cleanupNetworkInterface(containerName)
+
 	args := []string{
 		"-M", containerName + containerSuffix,
 		"-D", containerPrivateRoot,

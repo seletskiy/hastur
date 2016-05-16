@@ -82,6 +82,26 @@ func ensureAddress(namespace string, address string, dev string) error {
 	return nil
 }
 
+func cleanupNetworkInterface(name string) error {
+	interfaceName := "vb-" + name
+	interfaceName = interfaceName[:14] // seems like it get cutted by 14 chars
+
+	args := []string{"link", "delete", interfaceName}
+
+	command := exec.Command("ip", args...)
+
+	output, err := command.CombinedOutput()
+	if err != nil {
+		if bytes.HasPrefix(output, []byte("Cannot find device")) {
+			return nil
+		}
+
+		return formatExecError(command, err, output)
+	}
+
+	return nil
+}
+
 func setupBridge(dev string, address string) error {
 	return ensureAddress("", address, dev)
 }

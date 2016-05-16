@@ -176,13 +176,22 @@ func execBootstrap() error {
 
 func destroyContainer(args map[string]interface{}) error {
 	var (
-		rootDir  = args["-r"].(string)
-		force, _ = args["-f"].(bool)
+		rootDir       = args["-r"].(string)
+		force, _      = args["-f"].(bool)
+		containerName = args["<name>"].(string)
 	)
 
-	return removeContainer(
-		rootDir, args["<name>"].(string), force,
-	)
+	err := removeContainer(rootDir, containerName, force)
+	if err != nil {
+		return err
+	}
+
+	err = cleanupNetworkInterface(containerName)
+	if err != nil {
+		return err
+	}
+
+	return nil
 }
 
 func showBaseDirsInfo(args map[string]interface{}) error {
