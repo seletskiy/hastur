@@ -8,6 +8,7 @@ import (
 	"math/rand"
 	"net"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 	"syscall"
@@ -167,7 +168,7 @@ func execBootstrap() error {
 	err = syscall.Exec(command[0], command[0:], os.Environ())
 	if err != nil {
 		return fmt.Errorf(
-			"can't execute bootstrapped command %q: %s", os.Args, err,
+			"can't execute command %q: %s", os.Args[2:], err,
 		)
 	}
 
@@ -443,6 +444,10 @@ func createAndStart(args map[string]interface{}) error {
 	)
 
 	if err != nil {
+		if err, ok := err.(*exec.ExitError); ok {
+			os.Exit(err.Sys().(syscall.WaitStatus).ExitStatus())
+		}
+
 		return fmt.Errorf("command execution failed: %s", err)
 	}
 

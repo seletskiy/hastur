@@ -41,20 +41,15 @@ func nspawn(
 		)
 	}
 
-	var execErr error
-
 	if ephemeral {
 		defer func() {
-			if execErr != nil && keepFailed {
+			if err != nil && keepFailed {
 				return
 			}
 
 			removeErr := removeContainerDir(containerDir)
 			if removeErr != nil {
-				if err == nil {
-					err = removeErr
-					return
-				}
+				err = removeErr
 
 				log.Println(
 					"ERROR: can't remove container directory %s: %s",
@@ -65,11 +60,15 @@ func nspawn(
 	}
 
 	defer func() {
-		err = storageEngine.Break(
+		breakErr := storageEngine.Break(
 			baseDir,
 			getContainerDataRoot(rootDir, containerName),
 			containerPrivateRoot,
 		)
+
+		if breakErr != nil {
+			err = breakErr
+		}
 	}()
 
 	bootstrapper := "/.hastur.exec"
@@ -154,6 +153,6 @@ func nspawn(
 		return fmt.Errorf("can't write to control pipe: %s", err)
 	}
 
-	execErr = command.Wait()
-	return execErr
+	err = command.Wait()
+	return err
 }
