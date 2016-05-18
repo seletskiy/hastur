@@ -84,7 +84,9 @@ func ensureAddress(namespace string, address string, dev string) error {
 
 func cleanupNetworkInterface(name string) error {
 	interfaceName := "vb-" + name
-	interfaceName = interfaceName[:14] // seems like it get cutted by 14 chars
+	if len(interfaceName) > 14 {
+		interfaceName = interfaceName[:14] // seems like it get cutted by 14 chars
+	}
 
 	args := []string{"link", "delete", interfaceName}
 
