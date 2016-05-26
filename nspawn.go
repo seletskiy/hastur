@@ -89,6 +89,10 @@ func nspawn(
 
 	defer os.Remove(controlPipePath)
 
+	// we ignore error there because interface may not exist
+	_ = umountNetorkNamespace(containerName)
+	_ = cleanupNetworkInterface(containerName)
+
 	defer cleanupNetworkInterface(containerName)
 
 	args := []string{

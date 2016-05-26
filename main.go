@@ -182,17 +182,27 @@ func destroyContainer(args map[string]interface{}) error {
 		containerName = args["<name>"].(string)
 	)
 
+	containerPrivateRoot := getContainerPrivateRoot(rootDir, containerName)
+
+	// private root can be mounted due dirty shutdown
+	_ = umount(containerPrivateRoot)
+
 	err := removeContainer(rootDir, containerName, force)
 	if err != nil {
-		return err
+		log.Println(err)
+	}
+
+	err = umountNetorkNamespace(containerName)
+	if err != nil {
+		log.Println(err)
 	}
 
 	err = cleanupNetworkInterface(containerName)
 	if err != nil {
-		return err
+		log.Println(err)
 	}
 
-	return nil
+	return err
 }
 
 func showBaseDirsInfo(args map[string]interface{}) error {
