@@ -25,6 +25,21 @@ func ensureBridge(bridge string) error {
 	return nil
 }
 
+func addInterfaceToBridge(iface, bridge string) error {
+	command := exec.Command("brctl", "addif", bridge, iface)
+	output, err := command.CombinedOutput()
+	if err != nil {
+		prefix := fmt.Sprintf("device %s is already a member", iface)
+		if strings.HasPrefix(string(output), prefix) {
+			return nil
+		}
+
+		return formatExecError(command, err, output)
+	}
+
+	return nil
+}
+
 func getContainerIP(containerName string) (string, error) {
 	command := exec.Command("ip", "-n", containerName, "addr", "show", "host0")
 	output, err := command.CombinedOutput()
@@ -48,7 +63,7 @@ func getContainerIP(containerName string) (string, error) {
 	return "", nil
 }
 
-func setupNetwork(namespace string, address string) error {
+func setupNetwork(namespace string, address string, gateway string) error {
 	err := ensureAddress(namespace, address, "host0")
 	if err != nil {
 		return err
@@ -57,6 +72,36 @@ func setupNetwork(namespace string, address string) error {
 	err = upInterface(namespace, "host0")
 	if err != nil {
 		return err
+	}
+
+	gatewayIP, _, err := net.ParseCIDR(gateway)
+	if err != nil {
+		return err
+	}
+
+	err = addDefaultRoute(namespace, "host0", gatewayIP.String())
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func addDefaultRoute(namespace string, dev string, gateway string) error {
+	args := []string{"route", "add", "default", "via", gateway}
+	if namespace != "" {
+		args = append([]string{"-n", namespace}, args...)
+	}
+
+	command := exec.Command("ip", args...)
+
+	output, err := command.CombinedOutput()
+	if err != nil {
+		if bytes.HasPrefix(output, []byte("RTNETLINK answers: File exists")) {
+			return nil
+		}
+
+		return formatExecError(command, err, output)
 	}
 
 	return nil

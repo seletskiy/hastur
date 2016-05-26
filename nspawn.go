@@ -13,9 +13,8 @@ import (
 func nspawn(
 	storageEngine storage,
 	rootDir, baseDir, containerName string,
-	hostNetwork bool,
 	bridge string,
-	networkAddress string,
+	networkAddress string, bridgeAddress string,
 	ephemeral bool, keepFailed bool, quiet bool,
 	commandLine []string,
 ) (err error) {
@@ -95,14 +94,23 @@ func nspawn(
 
 	defer cleanupNetworkInterface(containerName)
 
+	err = addPostroutingMasquarading(bridge)
+	if err != nil {
+		return fmt.Errorf(
+			"can't add masquarading rules on the '%s': %s",
+			bridge,
+			err,
+		)
+	}
+
+	defer removePostroutingMasquarading(bridge)
+
 	args := []string{
 		"-M", containerName + containerSuffix,
 		"-D", containerPrivateRoot,
 	}
 
-	if !hostNetwork {
-		args = append(args, "-n", "--network-bridge", bridge)
-	}
+	args = append(args, "-n", "--network-bridge", bridge)
 
 	if quiet {
 		args = append(args, "-q")
@@ -138,18 +146,16 @@ func nspawn(
 		return err
 	}
 
-	if !hostNetwork {
-		err = mountNetworkNamespace(pid, containerName)
-		if err != nil {
-			return err
-		}
+	err = mountNetworkNamespace(pid, containerName)
+	if err != nil {
+		return err
+	}
 
-		defer umountNetorkNamespace(containerName)
+	defer umountNetorkNamespace(containerName)
 
-		err = setupNetwork(containerName, networkAddress)
-		if err != nil {
-			return err
-		}
+	err = setupNetwork(containerName, networkAddress, bridgeAddress)
+	if err != nil {
+		return err
 	}
 
 	err = ioutil.WriteFile(controlPipePath, []byte{}, 0)
