@@ -120,6 +120,16 @@ func umountNetorkNamespace(name string) error {
 	return os.Remove(bindTarget)
 }
 
+func umountRecursively(target string) error {
+	command := exec.Command("umount", "-R", target)
+	output, err := command.CombinedOutput()
+	if err != nil {
+		return formatExecError(command, err, output)
+	}
+
+	return nil
+}
+
 func umount(target string) error {
 	command := exec.Command("umount", target)
 	output, err := command.CombinedOutput()

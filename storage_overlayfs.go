@@ -78,7 +78,7 @@ func (storage *overlayFSStorage) Break(base, data, target string) error {
 }
 
 func (storage *overlayFSStorage) Destroy() error {
-	return nil
+	return umountRecursively(storage.rootDir)
 }
 
 func (storage *overlayFSStorage) fixUnsupportedFS() error {
