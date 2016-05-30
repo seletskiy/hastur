@@ -19,37 +19,20 @@ func getFSType(root string) (string, error) {
 	return strings.TrimSpace(string(output)), nil
 }
 
-func createLayout(root string, containerName string) error {
-	err := os.MkdirAll(filepath.Join(root, "containers"), 0755)
-	if err != nil {
-		return err
-	}
-
-	for _, dir := range []string{"root", ".nspawn.root", ".overlay.workdir"} {
-		err = os.MkdirAll(
-			filepath.Join(root, "containers", containerName, dir),
-			0755,
-		)
-
-		if err != nil {
-			return err
-		}
-	}
-
-	return nil
-}
-
 func createBaseDirForPackages(
-	root string, packages []string,
+	rootDir string,
+	packages []string,
+	storageEngine storage,
 ) (exists bool, dirName string, err error) {
-	baseDir := fmt.Sprintf(
-		"%s.#%x",
-		filepath.Join(root, "base"),
+	imageName := fmt.Sprintf(
+		"%x",
 		sha256.Sum224([]byte(strings.Join(packages, ","))),
 	)
 
+	baseDir := getImageDir(rootDir, imageName)
+
 	if _, err := os.Stat(baseDir); os.IsNotExist(err) {
-		err := os.Mkdir(baseDir, 0755)
+		err := storageEngine.InitImage(imageName)
 		if err != nil {
 			return false, "", fmt.Errorf(
 				"can't create base dir '%s': %s",
@@ -58,9 +41,9 @@ func createBaseDirForPackages(
 			)
 		}
 
-		return false, baseDir, nil
+		return false, imageName, nil
 	} else {
-		return true, baseDir, nil
+		return true, imageName, nil
 	}
 }
 
@@ -106,49 +89,12 @@ func getContainerDir(rootDir string, containerName string) string {
 	return filepath.Join(rootDir, "containers", containerName)
 }
 
-func getContainerPrivateRoot(rootDir string, containerName string) string {
-	return filepath.Join(
-		getContainerDir(rootDir, containerName),
-		".nspawn.root",
-	)
-}
-
-func getContainerDataRoot(rootDir string, containerName string) string {
-	return filepath.Join(
-		getContainerDir(rootDir, containerName),
-		"root",
-	)
+func getImageDir(rootDir string, imageName string) string {
+	return filepath.Join(rootDir, "images", imageName)
 }
 
 func getBaseDirs(rootDir string) ([]string, error) {
 	return filepath.Glob(filepath.Join(rootDir, "base.#*"))
-}
-
-func ensureRootDir(root string) error {
-	return os.MkdirAll(root, 0755)
-}
-
-func removeContainer(rootDir, containerName string, force bool) error {
-	containerPrivateRoot := getContainerPrivateRoot(rootDir, containerName)
-	err := umount(containerPrivateRoot)
-	if err != nil {
-		err = fmt.Errorf(
-			"can't umount private root %s: %s", containerPrivateRoot, err,
-		)
-
-		if !force {
-			return err
-		}
-	}
-
-	containerDir := getContainerDir(rootDir, containerName)
-
-	err = removeContainerDir(containerDir)
-	if err != nil {
-		return fmt.Errorf("can't remove container: %s", err)
-	}
-
-	return nil
 }
 
 func removeContainerDir(containerDir string) error {

@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"os"
 	"path/filepath"
 	"strings"
 )
@@ -55,30 +56,68 @@ func (storage *overlayFSStorage) Init() error {
 	return nil
 }
 
-func (storage *overlayFSStorage) Merge(base, data, target string) error {
+func (storage *overlayFSStorage) InitImage(image string) error {
+	return os.MkdirAll(getImageDir(storage.rootDir, image), 0755)
+}
+
+func (storage *overlayFSStorage) DeInit() error {
+	return nil
+}
+
+func (storage *overlayFSStorage) InitContainer(
+	baseDir string,
+	containerName string,
+) error {
+	containerDir := getContainerDir(storage.rootDir, containerName)
+
+	containerRoot := storage.GetContainerRoot(containerName)
+
+	for _, dir := range []string{"root", ".nspawn.root", ".overlay.workdir"} {
+		err := os.MkdirAll(
+			filepath.Join(containerDir, dir),
+			0755,
+		)
+
+		if err != nil {
+			return err
+		}
+	}
+
 	err := mountOverlay(
-		base,
-		data,
-		filepath.Join(filepath.Dir(data), ".overlay.workdir"),
-		target,
+		getImageDir(storage.rootDir, baseDir),
+		filepath.Join(containerDir, "root"),
+		filepath.Join(containerDir, ".overlay.workdir"),
+		containerRoot,
 	)
 
 	if err != nil {
 		return fmt.Errorf(
-			"can't mount overlay fs [%s, %s, %s]: %s",
-			base, data, target, err,
+			"can't mount overlay fs [%s] for '%s': %s",
+			baseDir, containerName, err,
 		)
 	}
 
 	return nil
 }
 
-func (storage *overlayFSStorage) Break(base, data, target string) error {
-	return umount(target)
+func (storage *overlayFSStorage) GetContainerRoot(containerName string) string {
+	containerDir := getContainerDir(storage.rootDir, containerName)
+
+	return filepath.Join(containerDir, ".nspawn.root")
+}
+
+func (storage *overlayFSStorage) DeInitContainer(containerName string) error {
+	_ = umount(storage.GetContainerRoot(containerName))
+
+	return removeContainerDir(getContainerDir(storage.rootDir, containerName))
 }
 
 func (storage *overlayFSStorage) Destroy() error {
 	return umountRecursively(storage.rootDir)
+}
+
+func (storage *overlayFSStorage) DestroyContainer(containerName string) error {
+	return storage.DeInitContainer(containerName)
 }
 
 func (storage *overlayFSStorage) fixUnsupportedFS() error {

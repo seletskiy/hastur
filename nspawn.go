@@ -12,22 +12,12 @@ import (
 
 func nspawn(
 	storageEngine storage,
-	rootDir, baseDir, containerName string,
+	containerName string,
 	bridge string,
 	networkAddress string, bridgeAddress string,
 	ephemeral bool, keepFailed bool, quiet bool,
 	commandLine []string,
 ) (err error) {
-	containerDir := getContainerDir(rootDir, containerName)
-
-	containerPrivateRoot := getContainerPrivateRoot(rootDir, containerName)
-
-	err = storageEngine.Merge(
-		baseDir,
-		getContainerDataRoot(rootDir, containerName),
-		containerPrivateRoot,
-	)
-
 	if err != nil {
 		return fmt.Errorf(
 			"storage can't create rootfs for nspawn: %s", err,
@@ -46,38 +36,32 @@ func nspawn(
 				return
 			}
 
-			removeErr := removeContainerDir(containerDir)
+			removeErr := storageEngine.DestroyContainer(containerName)
 			if removeErr != nil {
 				err = removeErr
 
-				log.Println(
-					"ERROR: can't remove container directory %s: %s",
-					containerDir, err,
+				log.Printf(
+					"ERROR: can't remove container '%s': %s",
+					containerName, err,
 				)
 			}
 		}()
 	}
 
-	defer func() {
-		breakErr := storageEngine.Break(
-			baseDir,
-			getContainerDataRoot(rootDir, containerName),
-			containerPrivateRoot,
-		)
-
-		if breakErr != nil {
-			err = breakErr
-		}
-	}()
-
 	bootstrapper := "/.hastur.exec"
-	err = installBootstrapExecutable(containerPrivateRoot, bootstrapper)
+	err = installBootstrapExecutable(
+		storageEngine.GetContainerRoot(containerName),
+		bootstrapper,
+	)
 	if err != nil {
 		return err
 	}
 
 	controlPipeName := bootstrapper + ".control"
-	controlPipePath := filepath.Join(containerPrivateRoot, controlPipeName)
+	controlPipePath := filepath.Join(
+		storageEngine.GetContainerRoot(containerName),
+		controlPipeName,
+	)
 
 	err = syscall.Mknod(controlPipePath, syscall.S_IFIFO|0644, 0)
 	if err != nil {
@@ -107,7 +91,7 @@ func nspawn(
 
 	args := []string{
 		"-M", containerName + containerSuffix,
-		"-D", containerPrivateRoot,
+		"-D", storageEngine.GetContainerRoot(containerName),
 	}
 
 	args = append(args, "-n", "--network-bridge", bridge)

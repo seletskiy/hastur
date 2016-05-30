@@ -38,10 +38,10 @@ Usage:
     hastur -h | --help
     hastur [options] [-b=] [-s=] [-a=] [-p <packages>...] [-n=]
                      -S [--] [<command>...]
-    hastur [options] -Q (-i | -c)
-    hastur [options] -Q (--rootfs|--ip) <name>
-    hastur [options] -D [-f] <name>
-    hastur [options] --free
+    hastur [options] [-s=] -Q (-i | -c)
+    hastur [options] [-s=] -Q (--rootfs|--ip) <name>
+    hastur [options] [-s=] -D [-f] <name>
+    hastur [options] [-s=] --free
 
 Options:
     -h --help        Show this help.
@@ -49,6 +49,20 @@ Options:
                       [default: /var/lib/hastur/]
     -q               Be quiet. Do not report status messages from nspawn.
     -f               Force operation.
+    -s <storage>     Use specified storageSpec backend for container base
+                      images and containers themselves. By default, overlayfs
+                      will be used to provide COW for base system. If overlayfs
+                      is not possible on current FS and no other storageSpec
+                      engine is possible, tmpfs will be mounted in specified
+                      root dir to provide groundwork for overlayfs.
+                      [default: autodetect]
+       <storage>     Possible values are:
+                      * autodetect - use one of available storage engines
+                      depending on current FS.
+                      * overlayfs:N - use current FS and overlayfs on top;
+                      if overlayfs is unsupported on current FS, mount tmpfs of
+                      size N first.
+                      * zfs:POOL - use ZFS and use <root> located on POOL.
 
 Create options:
     -S               Create and start container.
@@ -61,19 +75,6 @@ Create options:
                       [default: br0:10.0.0.1/8]
       -t <iface>     Use host network and gain access to external network.
                       Interface will pair given interface with bridge.
-      -s <storage>   Use specified storageSpec backend for container base
-                      images and containers themselves. By default, overlayfs
-                      will be used to provide COW for base system. If overlayfs
-                      is not possible on current FS and no other storageSpec
-                      engine is possible, tmpfs will be mounted in specified
-                      root dir to provide groundwork for overlayfs.
-                      [default: autodetect]
-         <storage>   Possible values are:
-                      * autodetect - use one of available storageSpec engines
-                      depending on current FS.
-                      * overlayfs:N - use current FS and overlayfs on top;
-                      if overlayfs is unsupported on current FS, mount tmpfs of
-                      size N first.
       -p <packages>  Packages to install, separated by comma.
                       [default: ` + defaultPackages + `]
       -n <name>      Use specified container name. If not specified, randomly
@@ -118,24 +119,34 @@ func main() {
 		panic(err)
 	}
 
+	var (
+		rootDir     = args["-r"].(string)
+		storageSpec = args["-s"].(string)
+	)
+
+	storageEngine, err := createStorageFromSpec(rootDir, storageSpec)
+	if err != nil {
+		log.Fatalf("ERROR: can't init storage: %s", err)
+	}
+
 	switch {
 	case args["-S"].(bool):
-		err = createAndStart(args)
+		err = createAndStart(args, storageEngine)
 	case args["-Q"].(bool):
 		switch {
 		default:
-			err = listContainersInfo(args)
+			err = listContainersInfo(args, storageEngine)
 		case args["-i"].(bool):
-			err = showBaseDirsInfo(args)
+			err = showBaseDirsInfo(args, storageEngine)
 		case args["--rootfs"].(bool):
-			err = showContainerDataRootFS(args)
+			err = showContainerDataRootFS(args, storageEngine)
 		case args["--ip"].(bool):
-			err = showContainerIP(args)
+			err = showContainerIP(args, storageEngine)
 		}
 	case args["-D"].(bool):
-		err = destroyContainer(args)
+		err = destroyContainer(args, storageEngine)
 	case args["--free"].(bool):
-		err = destroyRoot(args)
+		err = destroyRoot(args, storageEngine)
 	}
 
 	if err != nil {
@@ -176,29 +187,19 @@ func execBootstrap() error {
 	return nil
 }
 
-func destroyContainer(args map[string]interface{}) error {
+func destroyContainer(
+	args map[string]interface{},
+	storageEngine storage,
+) error {
 	var (
-		rootDir       = args["-r"].(string)
-		force, _      = args["-f"].(bool)
 		containerName = args["<name>"].(string)
 	)
 
-	containerPrivateRoot := getContainerPrivateRoot(rootDir, containerName)
+	storageEngine.DestroyContainer(containerName)
 
-	// private root can be mounted due dirty shutdown
-	_ = umount(containerPrivateRoot)
+	_ = umountNetorkNamespace(containerName)
 
-	err := removeContainer(rootDir, containerName, force)
-	if err != nil {
-		log.Println(err)
-	}
-
-	err = umountNetorkNamespace(containerName)
-	if err != nil {
-		log.Println(err)
-	}
-
-	err = cleanupNetworkInterface(containerName)
+	err := cleanupNetworkInterface(containerName)
 	if err != nil {
 		log.Println(err)
 	}
@@ -206,7 +207,10 @@ func destroyContainer(args map[string]interface{}) error {
 	return err
 }
 
-func showBaseDirsInfo(args map[string]interface{}) error {
+func showBaseDirsInfo(
+	args map[string]interface{},
+	storageEngine storage,
+) error {
 	var (
 		rootDir = args["-r"].(string)
 	)
@@ -237,18 +241,23 @@ func showBaseDirsInfo(args map[string]interface{}) error {
 	return nil
 }
 
-func showContainerDataRootFS(args map[string]interface{}) error {
+func showContainerDataRootFS(
+	args map[string]interface{},
+	storageEngine storage,
+) error {
 	var (
-		rootDir = args["-r"].(string)
-		name    = args["<name>"].(string)
+		name = args["<name>"].(string)
 	)
 
-	fmt.Println(getContainerDataRoot(rootDir, name))
+	fmt.Println(storageEngine.GetContainerRoot(name))
 
 	return nil
 }
 
-func showContainerIP(args map[string]interface{}) error {
+func showContainerIP(
+	args map[string]interface{},
+	storageEngine storage,
+) error {
 	var (
 		rootDir = args["-r"].(string)
 		name    = args["<name>"].(string)
@@ -285,7 +294,10 @@ func showContainerIP(args map[string]interface{}) error {
 	return nil
 }
 
-func listContainersInfo(args map[string]interface{}) error {
+func listContainersInfo(
+	args map[string]interface{},
+	storageEngine storage,
+) error {
 	var (
 		rootDir = args["-r"].(string)
 	)
@@ -324,11 +336,13 @@ func listContainersInfo(args map[string]interface{}) error {
 	return nil
 }
 
-func createAndStart(args map[string]interface{}) error {
+func createAndStart(
+	args map[string]interface{},
+	storageEngine storage,
+) error {
 	var (
 		bridgeInfo        = args["-b"].(string)
 		rootDir           = args["-r"].(string)
-		storageSpec       = args["-s"].(string)
 		packagesList      = args["-p"].([]string)
 		containerName, _  = args["-n"].(string)
 		commandLine       = args["<command>"].([]string)
@@ -341,16 +355,8 @@ func createAndStart(args map[string]interface{}) error {
 		quiet             = args["-q"].(bool)
 	)
 
-	err := ensureRootDir(rootDir)
-	if err != nil {
-		return fmt.Errorf(
-			"can't create root directory at '%s': %s", rootDir, err,
-		)
-	}
-
-	var bridgeDevice, bridgeAddress string
-	bridgeDevice, bridgeAddress = parseBridgeInfo(bridgeInfo)
-	err = ensureBridge(bridgeDevice)
+	bridgeDevice, bridgeAddress := parseBridgeInfo(bridgeInfo)
+	err := ensureBridge(bridgeDevice)
 	if err != nil {
 		return fmt.Errorf(
 			"can't create bridge interface '%s': %s", bridgeDevice, err,
@@ -380,18 +386,6 @@ func createAndStart(args map[string]interface{}) error {
 		}
 	}
 
-	storageEngine, err := createStorageFromSpec(rootDir, storageSpec)
-	if err != nil {
-		return err
-	}
-
-	err = storageEngine.Init()
-	if err != nil {
-		return fmt.Errorf(
-			"can't init storage '%s': %s", storageSpec, err,
-		)
-	}
-
 	ephemeral := false
 	if containerName == "" {
 		generatedName := generateContainerName()
@@ -408,20 +402,17 @@ func createAndStart(args map[string]interface{}) error {
 		containerName = generatedName
 	}
 
-	err = createLayout(rootDir, containerName)
-	if err != nil {
-		return fmt.Errorf(
-			"can't create directory layout under '%s': %s", rootDir, err,
-		)
-	}
-
 	allPackages := []string{}
 	for _, packagesGroup := range packagesList {
 		packages := strings.Split(packagesGroup, ",")
 		allPackages = append(allPackages, packages...)
 	}
 
-	cacheExists, baseDir, err := createBaseDirForPackages(rootDir, allPackages)
+	cacheExists, baseDir, err := createBaseDirForPackages(
+		rootDir,
+		allPackages,
+		storageEngine,
+	)
 	if err != nil {
 		return fmt.Errorf(
 			"can't create base dir '%s': %s", baseDir, err,
@@ -430,12 +421,19 @@ func createAndStart(args map[string]interface{}) error {
 
 	if !cacheExists || force {
 		fmt.Println("Installing packages")
-		err = installPackages(baseDir, allPackages)
+		err = installPackages(getImageDir(rootDir, baseDir), allPackages)
 		if err != nil {
 			return fmt.Errorf(
 				"can't install packages into '%s': %s", rootDir, err,
 			)
 		}
+	}
+
+	err = storageEngine.InitContainer(baseDir, containerName)
+	if err != nil {
+		return fmt.Errorf(
+			"can't create directory layout under '%s': %s", rootDir, err,
+		)
 	}
 
 	if networkAddress == "" {
@@ -448,7 +446,7 @@ func createAndStart(args map[string]interface{}) error {
 	}
 
 	if copyingDir != "" {
-		err = copyDir(copyingDir, baseDir)
+		err = copyDir(copyingDir, getImageDir(rootDir, baseDir))
 		if err != nil {
 			return fmt.Errorf(
 				"can't copy %s to container root: %s", copyingDir, err,
@@ -458,7 +456,7 @@ func createAndStart(args map[string]interface{}) error {
 
 	err = nspawn(
 		storageEngine,
-		rootDir, baseDir, containerName,
+		containerName,
 		bridgeDevice, networkAddress, bridgeAddress,
 		ephemeral, keepFailed, quiet,
 		commandLine,
@@ -475,18 +473,11 @@ func createAndStart(args map[string]interface{}) error {
 	return nil
 }
 
-func destroyRoot(args map[string]interface{}) error {
-	var (
-		rootDir     = args["-r"].(string)
-		storageSpec = args["-s"].(string)
-	)
-
-	storageEngine, err := createStorageFromSpec(rootDir, storageSpec)
-	if err != nil {
-		return err
-	}
-
-	err = storageEngine.Destroy()
+func destroyRoot(
+	args map[string]interface{},
+	storageEngine storage,
+) error {
+	err := storageEngine.Destroy()
 	if err != nil {
 		return fmt.Errorf(
 			"can't destroy storage: %s", err,
@@ -547,11 +538,21 @@ func createStorageFromSpec(rootDir, storageSpec string) (storage, error) {
 
 	case strings.HasPrefix(storageSpec, "overlayfs"):
 		storageEngine, err = NewOverlayFSStorage(rootDir, storageSpec)
+
+	case strings.HasPrefix(storageSpec, "zfs"):
+		storageEngine, err = NewZFSStorage(rootDir, storageSpec)
 	}
 
 	if err != nil {
 		return nil, fmt.Errorf(
 			"can't create storage '%s': %s", storageSpec, err,
+		)
+	}
+
+	err = storageEngine.Init()
+	if err != nil {
+		return nil, fmt.Errorf(
+			"can't init storage '%s': %s", storageSpec, err,
 		)
 	}
 
