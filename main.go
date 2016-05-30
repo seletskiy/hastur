@@ -195,11 +195,11 @@ func destroyContainer(
 		containerName = args["<name>"].(string)
 	)
 
-	storageEngine.DestroyContainer(containerName)
+	err := storageEngine.DestroyContainer(containerName)
 
 	_ = umountNetorkNamespace(containerName)
 
-	err := cleanupNetworkInterface(containerName)
+	err = cleanupNetworkInterface(containerName)
 	if err != nil {
 		log.Println(err)
 	}

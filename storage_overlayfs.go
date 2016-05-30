@@ -107,9 +107,7 @@ func (storage *overlayFSStorage) GetContainerRoot(containerName string) string {
 }
 
 func (storage *overlayFSStorage) DeInitContainer(containerName string) error {
-	_ = umount(storage.GetContainerRoot(containerName))
-
-	return removeContainerDir(getContainerDir(storage.rootDir, containerName))
+	return umount(storage.GetContainerRoot(containerName))
 }
 
 func (storage *overlayFSStorage) Destroy() error {
@@ -117,7 +115,9 @@ func (storage *overlayFSStorage) Destroy() error {
 }
 
 func (storage *overlayFSStorage) DestroyContainer(containerName string) error {
-	return storage.DeInitContainer(containerName)
+	_ = storage.DeInitContainer(containerName)
+
+	return removeContainerDir(getContainerDir(storage.rootDir, containerName))
 }
 
 func (storage *overlayFSStorage) fixUnsupportedFS() error {
