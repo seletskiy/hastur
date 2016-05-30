@@ -25,6 +25,89 @@ func ensureBridge(bridge string) error {
 	return nil
 }
 
+func copyInterfaceRoutesToBridge(iface, bridge string) error {
+	command := exec.Command("ip", "route", "show", "dev", iface)
+	output, err := command.CombinedOutput()
+	if err != nil {
+		return formatExecError(command, err, output)
+	}
+
+	rawIPOutput := strings.Split(string(output), "\n")
+	for _, line := range rawIPOutput {
+		if line == "" {
+			continue
+		}
+
+		trimmedLine := strings.TrimSpace(line)
+		trimmedLine = strings.Replace(trimmedLine, "  ", " ", -1)
+
+		err = execIpRoute(
+			"delete", iface,
+			strings.Split(trimmedLine, " ")...,
+		)
+		if err != nil {
+			return err
+		}
+
+		err = execIpRoute(
+			"add", bridge,
+			strings.Split(trimmedLine, " ")...,
+		)
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+func execIpRoute(action string, iface string, args ...string) error {
+	command := exec.Command(
+		"ip", append(
+			[]string{"route", action, "dev", iface},
+			args...,
+		)...,
+	)
+
+	output, err := command.CombinedOutput()
+	if err != nil {
+		return formatExecError(command, err, output)
+	}
+
+	return nil
+}
+
+func copyInterfaceAddressToBridge(iface string, bridge string) error {
+	addrs, err := getHostIPs(iface)
+	if err != nil {
+		return err
+	}
+
+	for _, addr := range addrs {
+		ip, _, err := net.ParseCIDR(addr.String())
+		if err != nil {
+			return err
+		}
+		if ip.To4() == nil {
+			continue
+		}
+
+		broadcast := broadcast(ip, ip.DefaultMask())
+
+		command := exec.Command(
+			"ip", "addr", "add",
+			"dev", bridge, addr.String(),
+			"broadcast", broadcast.String(),
+		)
+		output, err := command.CombinedOutput()
+		if err != nil {
+			return formatExecError(command, err, output)
+		}
+	}
+
+	return nil
+}
+
 func addInterfaceToBridge(iface, bridge string) error {
 	command := exec.Command("brctl", "addif", bridge, iface)
 	output, err := command.CombinedOutput()
@@ -193,4 +276,30 @@ func generateRandomNetwork(address *net.IPNet) string {
 	address.IP.Mask(address.Mask)
 
 	return address.String()
+}
+
+func getHostIPs(interfaceName string) ([]net.Addr, error) {
+	hostInterfaces, err := net.Interfaces()
+	if err != nil {
+		return nil, err
+	}
+
+	var iface net.Interface
+	for _, hostInterface := range hostInterfaces {
+		if hostInterface.Name == interfaceName {
+			iface = hostInterface
+			break
+		}
+	}
+
+	addrs, err := iface.Addrs()
+	if err != nil {
+		return nil, err
+	}
+
+	if len(addrs) == 0 {
+		return nil, fmt.Errorf("no ip addresses assigned to interface")
+	}
+
+	return addrs, nil
 }

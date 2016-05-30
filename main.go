@@ -20,7 +20,7 @@ import (
 
 const containerSuffix = ".hastur"
 
-const defaultPackages = `bash,coreutils,iproute2,iputils`
+const defaultPackages = `bash,coreutils,iproute2,iputils,libidn,nettle`
 
 const usage = `hastur the unspeakable - zero-conf systemd container manager.
 
@@ -367,7 +367,8 @@ func createAndStart(
 		err = setupBridge(bridgeDevice, bridgeAddress)
 		if err != nil {
 			return fmt.Errorf(
-				"can't assign address on bridge '%s': %s",
+				"can't assign address '%s' on bridge '%s': %s",
+				bridgeAddress,
 				bridgeDevice,
 				err,
 			)
@@ -379,6 +380,26 @@ func createAndStart(
 		if err != nil {
 			return fmt.Errorf(
 				"can't bind host's ethernet '%s' to '%s': %s",
+				hostInterface,
+				bridgeDevice,
+				err,
+			)
+		}
+
+		err = copyInterfaceAddressToBridge(hostInterface, bridgeDevice)
+		if err != nil {
+			return fmt.Errorf(
+				"can't copy address from host's '%s' to '%s': %s",
+				hostInterface,
+				bridgeDevice,
+				err,
+			)
+		}
+
+		err = copyInterfaceRoutesToBridge(hostInterface, bridgeDevice)
+		if err != nil {
+			return fmt.Errorf(
+				"can't copy routes from host's '%s' to '%s': %s",
 				hostInterface,
 				bridgeDevice,
 				err,
