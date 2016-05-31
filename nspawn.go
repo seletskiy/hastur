@@ -18,6 +18,8 @@ func nspawn(
 	ephemeral bool, keepFailed bool, quiet bool,
 	commandLine []string,
 ) (err error) {
+	defer storageEngine.DeInitContainer(containerName)
+
 	if err != nil {
 		return fmt.Errorf(
 			"storage can't create rootfs for nspawn: %s", err,
