@@ -355,11 +355,28 @@ func createAndStart(
 		quiet             = args["-q"].(bool)
 	)
 
+	err := ensureIPv4Forwarding()
+	if err != nil {
+		return fmt.Errorf(
+			"can't enable ipv4 forwarding: %s",
+			err,
+		)
+	}
+
 	bridgeDevice, bridgeAddress := parseBridgeInfo(bridgeInfo)
-	err := ensureBridge(bridgeDevice)
+	err = ensureBridge(bridgeDevice)
 	if err != nil {
 		return fmt.Errorf(
 			"can't create bridge interface '%s': %s", bridgeDevice, err,
+		)
+	}
+
+	err = ensureBridgeInterfaceUp(bridgeDevice)
+	if err != nil {
+		return fmt.Errorf(
+			"can't set bridge '%s' up: %s",
+			bridgeDevice,
+			err,
 		)
 	}
 
