@@ -3,8 +3,10 @@ package main
 import (
 	"bytes"
 	"fmt"
+	"io/ioutil"
 	"math"
 	"net"
+	"os"
 	"os/exec"
 	"strings"
 	"time"
@@ -20,6 +22,36 @@ func ensureBridge(bridge string) error {
 		}
 
 		return formatExecError(command, err, output)
+	}
+
+	return nil
+}
+
+func ensureBridgeInterfaceUp(bridge string) error {
+	command := exec.Command("ip", "link", "set", "dev", bridge, "up")
+	output, err := command.CombinedOutput()
+	if err != nil {
+		return formatExecError(command, err, output)
+	}
+
+	return nil
+}
+
+func ensureIPv4Forwarding() error {
+	fileIpForward := "/proc/sys/net/ipv4/ip_forward"
+	valueIpForward, err := ioutil.ReadFile(fileIpForward)
+	if err != nil {
+		return err
+	}
+
+	if strings.Contains(string(valueIpForward), "0") {
+		err = ioutil.WriteFile(
+			fileIpForward, []byte("1\n"),
+			os.FileMode(0644),
+		)
+		if err != nil {
+			return err
+		}
 	}
 
 	return nil
@@ -71,6 +103,13 @@ func execIpRoute(action string, iface string, args ...string) error {
 
 	output, err := command.CombinedOutput()
 	if err != nil {
+		if bytes.HasPrefix(
+			output,
+			[]byte("RTNETLINK answers: File exists"),
+		) {
+			return nil
+		}
+
 		return formatExecError(command, err, output)
 	}
 
@@ -101,6 +140,13 @@ func copyInterfaceAddressToBridge(iface string, bridge string) error {
 		)
 		output, err := command.CombinedOutput()
 		if err != nil {
+			if bytes.HasPrefix(
+				output,
+				[]byte("RTNETLINK answers: File exists"),
+			) {
+				return nil
+			}
+
 			return formatExecError(command, err, output)
 		}
 	}
