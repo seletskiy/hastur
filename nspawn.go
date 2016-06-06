@@ -91,6 +91,15 @@ func nspawn(
 
 	defer removePostroutingMasquarading(bridge)
 
+	command := exec.Command(
+		"systemd-machine-id-setup",
+		"--root", storageEngine.GetContainerRoot(containerName),
+	)
+	output, err := command.CombinedOutput()
+	if err != nil {
+		return formatExecError(command, err, output)
+	}
+
 	args := []string{
 		"-M", containerName + containerSuffix,
 		"-D", storageEngine.GetContainerRoot(containerName),
@@ -104,7 +113,7 @@ func nspawn(
 
 	args = append(args, bootstrapper, controlPipeName)
 
-	command := exec.Command(
+	command = exec.Command(
 		"systemd-nspawn",
 		append(args, commandLine...)...,
 	)
