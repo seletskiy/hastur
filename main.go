@@ -508,6 +508,10 @@ func createAndStart(
 		return fmt.Errorf("command execution failed: %s", err)
 	}
 
+	if keep && ephemeral {
+		fmt.Printf("Container has been created: %s\n", containerName)
+	}
+
 	return nil
 }
 
