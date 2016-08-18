@@ -129,7 +129,14 @@ func (storage *overlayFSStorage) fixUnsupportedFS() error {
 	}
 
 	if !tmpfsMounted {
-		err := mountTmpfs(storage.rootDir, storage.tmpfsSize)
+		err := os.MkdirAll(storage.rootDir, 0644)
+		if err != nil {
+			return fmt.Errorf(
+				"can't create directory for tmpfs mountpoint: %s", err,
+			)
+		}
+
+		err = mountTmpfs(storage.rootDir, storage.tmpfsSize)
 		if err != nil {
 			return fmt.Errorf(
 				"can't mount tmpfs of size %s on '%s': %s",
