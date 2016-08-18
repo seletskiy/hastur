@@ -15,11 +15,11 @@ import (
 	"github.com/docopt/docopt-go"
 )
 
-const containerSuffix = ".hastur"
-
-const defaultPackages = `bash,coreutils,iproute2,iputils,libidn,nettle`
-
-const usage = `hastur the unspeakable - zero-conf systemd container manager.
+const (
+	containerSuffix = `.hastur`
+	defaultPackages = `bash,coreutils,iproute2,iputils,libidn,nettle`
+	version         = `3.0`
+	usage           = `hastur the unspeakable - zero-conf systemd container manager.
 
 hastur is a simple wrapper around systemd-nspawn, that will start container
 with overlayfs, pre-installed packages and bridged network available out
@@ -92,8 +92,8 @@ Destroy options:
     -D               Destroy specified container.
     --free           Completely remove all data in <root> directory with
                       containers and base images.
-
 `
+)
 
 func main() {
 	rand.Seed(time.Now().UnixNano())
@@ -105,7 +105,7 @@ func main() {
 		}
 	}
 
-	args, err := docopt.Parse(usage, nil, true, "2.0", false)
+	args, err := docopt.Parse(usage, nil, true, version, false)
 	if err != nil {
 		panic(err)
 	}
