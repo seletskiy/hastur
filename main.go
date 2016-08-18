@@ -1,7 +1,6 @@
 package main
 
 import (
-	"errors"
 	"fmt"
 	"io/ioutil"
 	"log"
@@ -9,10 +8,8 @@ import (
 	"net"
 	"os"
 	"os/exec"
-	"path/filepath"
 	"strings"
 	"syscall"
-	"text/tabwriter"
 	"time"
 
 	"github.com/docopt/docopt-go"
@@ -36,10 +33,8 @@ services and running local network of trusted containers.
 
 Usage:
     hastur -h | --help
-    hastur [options] [-b=] [-s=] [-a=] [-p <packages>...] [-n=]
-                     -S [--] [<command>...]
-    hastur [options] [-s=] -Q (-i | -c)
-    hastur [options] [-s=] -Q (--rootfs|--ip) <name>
+    hastur [options] [-b=] [-s=] [-a=] [-p <packages>...] [-n=] -S [--] [<command>...]
+    hastur [options] [-s=] -Q [-j] [<name>...]
     hastur [options] [-s=] -D [-f] <name>
     hastur [options] [-s=] --free
 
@@ -92,11 +87,7 @@ Create options:
 Query options:
     -Q               Show information about containers in the <root> dir.
        <name>        Query container's options.
-         --rootfs    Returns container's root FS path. Can be used to copy
-                      files inside of the container.
-         --ip        Returns container's IP address.
-      -i             Show base images.
-      -c             Show containers.
+    -j               Output information using JSON format.
 Destroy options:
     -D               Destroy specified container.
     --free           Completely remove all data in <root> directory with
@@ -133,16 +124,7 @@ func main() {
 	case args["-S"].(bool):
 		err = createAndStart(args, storageEngine)
 	case args["-Q"].(bool):
-		switch {
-		default:
-			err = listContainersInfo(args, storageEngine)
-		case args["-i"].(bool):
-			err = showBaseDirsInfo(args, storageEngine)
-		case args["--rootfs"].(bool):
-			err = showContainerDataRootFS(args, storageEngine)
-		case args["--ip"].(bool):
-			err = showContainerIP(args, storageEngine)
-		}
+		err = queryContainers(args, storageEngine)
 	case args["-D"].(bool):
 		err = destroyContainer(args, storageEngine)
 	case args["--free"].(bool):
@@ -236,101 +218,6 @@ func showBaseDirsInfo(
 		for _, packageName := range packages {
 			fmt.Printf("\t%s\n", packageName)
 		}
-	}
-
-	return nil
-}
-
-func showContainerDataRootFS(
-	args map[string]interface{},
-	storageEngine storage,
-) error {
-	var (
-		name = args["<name>"].(string)
-	)
-
-	fmt.Println(storageEngine.GetContainerRoot(name))
-
-	return nil
-}
-
-func showContainerIP(
-	args map[string]interface{},
-	storageEngine storage,
-) error {
-	var (
-		rootDir = args["-r"].(string)
-		name    = args["<name>"].(string)
-	)
-
-	containers, err := listContainers(filepath.Join(rootDir, "containers"))
-	if err != nil {
-		return err
-	}
-
-	activeContainers, err := listActiveContainers(containerSuffix)
-	if err != nil {
-		return err
-	}
-
-	for _, containerName := range containers {
-		if name != containerName {
-			continue
-		}
-
-		if _, ok := activeContainers[containerName]; ok {
-			address, err := getContainerIP(containerName)
-			if err != nil {
-				return err
-			}
-
-			fmt.Println(address)
-			return nil
-		} else {
-			return errors.New("container is not active")
-		}
-	}
-
-	return nil
-}
-
-func listContainersInfo(
-	args map[string]interface{},
-	storageEngine storage,
-) error {
-	var (
-		rootDir = args["-r"].(string)
-	)
-
-	containers, err := listContainers(filepath.Join(rootDir, "containers"))
-	if err != nil {
-		return err
-	}
-
-	activeContainers, err := listActiveContainers(containerSuffix)
-	if err != nil {
-		return err
-	}
-
-	writer := tabwriter.NewWriter(os.Stdout, 2, 4, 2, ' ', 0)
-	for _, containerName := range containers {
-		address := ""
-		state := "inactive"
-
-		if _, ok := activeContainers[containerName]; ok {
-			state = "running"
-			address, err = getContainerIP(containerName)
-			if err != nil {
-				return err
-			}
-		}
-
-		fmt.Fprintf(writer, "%s\t%s\t%s\n", containerName, state, address)
-	}
-
-	err = writer.Flush()
-	if err != nil {
-		return err
 	}
 
 	return nil
