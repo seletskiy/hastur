@@ -78,6 +78,18 @@ func (storage *zfsStorage) InitImage(image string) error {
 	return nil
 }
 
+func (storage *zfsStorage) DeInitImage(image string) error {
+	err := doZFSCommand(
+		"destroy",
+		filepath.Join(storage.pool, getImageDir(storage.rootDir, image)),
+	)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
 func (storage *zfsStorage) DeInit() error {
 	return nil
 }

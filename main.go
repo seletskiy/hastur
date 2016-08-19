@@ -8,11 +8,13 @@ import (
 	"net"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"strings"
 	"syscall"
 	"time"
 
 	"github.com/docopt/docopt-go"
+	"github.com/seletskiy/hierr"
 )
 
 const (
@@ -352,6 +354,16 @@ func createAndStart(
 		if err != nil {
 			return fmt.Errorf(
 				"can't install packages into '%s': %s", rootDir, err,
+			)
+		}
+
+		err = ioutil.WriteFile(
+			filepath.Join(getImageDir(rootDir, baseDir), ".hastur"),
+			nil, 0644,
+		)
+		if err != nil {
+			return hierr.Errorf(
+				err, "can't create .hastur file in image directory",
 			)
 		}
 	}

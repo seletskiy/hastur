@@ -60,6 +60,10 @@ func (storage *overlayFSStorage) InitImage(image string) error {
 	return os.MkdirAll(getImageDir(storage.rootDir, image), 0755)
 }
 
+func (storage *overlayFSStorage) DeInitImage(image string) error {
+	return os.RemoveAll(getImageDir(storage.rootDir, image))
+}
+
 func (storage *overlayFSStorage) DeInit() error {
 	return nil
 }
@@ -89,7 +93,6 @@ func (storage *overlayFSStorage) InitContainer(
 		filepath.Join(containerDir, ".overlay.workdir"),
 		containerRoot,
 	)
-
 	if err != nil {
 		return fmt.Errorf(
 			"can't mount overlay fs [%s] for '%s': %s",

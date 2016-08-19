@@ -7,6 +7,8 @@ import (
 	"os/exec"
 	"path/filepath"
 	"strings"
+
+	"github.com/seletskiy/hierr"
 )
 
 func getFSType(root string) (string, error) {
@@ -29,15 +31,21 @@ func createBaseDirForPackages(
 		sha256.Sum224([]byte(strings.Join(packages, ","))),
 	)
 
-	baseDir := getImageDir(rootDir, imageName)
-
-	if _, err := os.Stat(baseDir); os.IsNotExist(err) {
-		err := storageEngine.InitImage(imageName)
+	imageDir := getImageDir(rootDir, imageName)
+	if isExists(imageDir) && !isExists(imageDir, ".hastur") {
+		err = storageEngine.DeInitImage(imageName)
 		if err != nil {
-			return false, "", fmt.Errorf(
-				"can't create base dir '%s': %s",
-				baseDir,
-				err,
+			return false, "", hierr.Errorf(
+				err, "can't deinitialize image %s", imageName,
+			)
+		}
+	}
+
+	if !isExists(imageDir) {
+		err = storageEngine.InitImage(imageName)
+		if err != nil {
+			return false, "", hierr.Errorf(
+				err, "can't initialize image %s", imageName,
 			)
 		}
 
@@ -107,4 +115,9 @@ func removeContainerDir(containerDir string) error {
 	}
 
 	return nil
+}
+
+func isExists(path ...string) bool {
+	_, err := os.Stat(filepath.Join(path...))
+	return !os.IsNotExist(err)
 }
