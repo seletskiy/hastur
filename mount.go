@@ -7,6 +7,9 @@ import (
 	"os/exec"
 	"path/filepath"
 	"strings"
+
+	"github.com/kovetskiy/executil"
+	"github.com/reconquest/ser-go"
 )
 
 func isMounted(device, mountpoint string) (bool, error) {
@@ -16,13 +19,13 @@ func isMounted(device, mountpoint string) (bool, error) {
 	}
 
 	command := exec.Command("findmnt", device, absPath)
-	output, err := command.CombinedOutput()
+	_, _, err = executil.Run(command)
 	if err != nil {
 		if _, ok := err.(*exec.ExitError); ok {
 			return false, nil
 		}
 
-		return false, formatExecError(command, err, output)
+		return false, err
 	}
 
 	return true, nil
@@ -33,9 +36,9 @@ func mountTmpfs(target string, size string) error {
 		"mount", "-t", "tmpfs", "-o", "size="+size, "tmpfs", target,
 	)
 
-	output, err := command.CombinedOutput()
+	_, _, err := executil.Run(command)
 	if err != nil {
-		return formatExecError(command, err, output)
+		return err
 	}
 
 	return nil
@@ -67,9 +70,9 @@ func mountOverlay(lower, upper, work, target string) error {
 		"overlay", target,
 	)
 
-	output, err := command.CombinedOutput()
+	_, _, err = executil.Run(command)
 	if err != nil {
-		return formatExecError(command, err, output)
+		return err
 	}
 
 	return nil
@@ -80,8 +83,9 @@ func mountNetworkNamespace(PID int, target string) error {
 	if _, err := os.Stat(netnsDir); os.IsNotExist(err) {
 		err := os.Mkdir(netnsDir, 0755)
 		if err != nil {
-			return fmt.Errorf(
-				"can't create dir '%s': %s", netnsDir, err,
+			return ser.Errorf(
+				err,
+				"can't create dir '%s'", netnsDir,
 			)
 		}
 	}
@@ -90,7 +94,9 @@ func mountNetworkNamespace(PID int, target string) error {
 
 	err := ioutil.WriteFile(bindTarget, []byte{}, 0644)
 	if err != nil {
-		return fmt.Errorf("can't touch file '%s': %s", bindTarget, err)
+		return ser.Errorf(
+			err, "can't touch file '%s'", bindTarget,
+		)
 	}
 
 	return mountBind(
@@ -101,9 +107,9 @@ func mountNetworkNamespace(PID int, target string) error {
 func mountBind(source, target string) error {
 	command := exec.Command("mount", "--bind", source, target)
 
-	output, err := command.CombinedOutput()
+	_, _, err := executil.Run(command)
 	if err != nil {
-		return formatExecError(command, err, output)
+		return err
 	}
 
 	return nil
@@ -114,17 +120,26 @@ func umountNetorkNamespace(name string) error {
 
 	err := umount(bindTarget)
 	if err != nil {
-		return err
+		return ser.Errorf(
+			err, "can't umount %s", bindTarget,
+		)
 	}
 
-	return os.Remove(bindTarget)
+	err = os.Remove(bindTarget)
+	if err != nil {
+		return ser.Errorf(
+			err, "can't remove %s", bindTarget,
+		)
+	}
+
+	return nil
 }
 
 func umountRecursively(target string) error {
 	command := exec.Command("umount", "-R", target)
-	output, err := command.CombinedOutput()
+	_, _, err := executil.Run(command)
 	if err != nil {
-		return formatExecError(command, err, output)
+		return err
 	}
 
 	return nil
@@ -132,9 +147,9 @@ func umountRecursively(target string) error {
 
 func umount(target string) error {
 	command := exec.Command("umount", target)
-	output, err := command.CombinedOutput()
+	_, _, err := executil.Run(command)
 	if err != nil {
-		return formatExecError(command, err, output)
+		return err
 	}
 
 	return nil

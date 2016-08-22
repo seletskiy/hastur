@@ -3,7 +3,6 @@ package main
 import (
 	"encoding/json"
 	"fmt"
-	"log"
 	"os"
 	"path/filepath"
 	"text/tabwriter"
@@ -63,9 +62,9 @@ func queryContainers(
 			container.Status = "active"
 			container.Address, err = getContainerIP(name)
 			if err != nil {
-				log.Printf(
-					"WARNING: can't get container %s address: %s",
-					name, err,
+				fmt.Fprintf(os.Stderr,
+					"WARNING: can't obtain container '%s' address\n",
+					name,
 				)
 			}
 		}

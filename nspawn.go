@@ -3,11 +3,13 @@ package main
 import (
 	"fmt"
 	"io/ioutil"
-	"log"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"syscall"
+
+	"github.com/kovetskiy/executil"
+	"github.com/reconquest/ser-go"
 )
 
 func nspawn(
@@ -21,14 +23,16 @@ func nspawn(
 	defer storageEngine.DeInitContainer(containerName)
 
 	if err != nil {
-		return fmt.Errorf(
-			"storage can't create rootfs for nspawn: %s", err,
+		return ser.Errorf(
+			err,
+			"storage can't create rootfs for nspawn",
 		)
 	}
 
 	if err != nil {
-		return fmt.Errorf(
-			"can't setup overlayfs for '%s': %s", containerName, err,
+		return ser.Errorf(
+			err,
+			"can't setup overlayfs for '%s'", containerName,
 		)
 	}
 
@@ -42,9 +46,11 @@ func nspawn(
 			if removeErr != nil {
 				err = removeErr
 
-				log.Printf(
-					"ERROR: can't remove container '%s': %s",
-					containerName, err,
+				fmt.Fprintln(
+					os.Stderr,
+					ser.Errorf(
+						err, "can't remove container '%s'", containerName,
+					).HierarchicalError(),
 				)
 			}
 		}()
@@ -67,8 +73,9 @@ func nspawn(
 
 	err = syscall.Mknod(controlPipePath, syscall.S_IFIFO|0644, 0)
 	if err != nil {
-		return fmt.Errorf(
-			"can't create control pipe for bootstrapper: %s", err,
+		return ser.Errorf(
+			err,
+			"can't create control pipe for bootstrapper",
 		)
 	}
 
@@ -82,10 +89,10 @@ func nspawn(
 
 	err = addPostroutingMasquarading(bridge)
 	if err != nil {
-		return fmt.Errorf(
-			"can't add masquarading rules on the '%s': %s",
-			bridge,
+		return ser.Errorf(
 			err,
+			"can't add masquarading rules on the '%s'",
+			bridge,
 		)
 	}
 
@@ -95,9 +102,9 @@ func nspawn(
 		"systemd-machine-id-setup",
 		"--root", storageEngine.GetContainerRoot(containerName),
 	)
-	output, err := command.CombinedOutput()
+	_, _, err = executil.Run(command)
 	if err != nil {
-		return formatExecError(command, err, output)
+		return err
 	}
 
 	args := []string{
@@ -155,7 +162,8 @@ func nspawn(
 
 	err = ioutil.WriteFile(controlPipePath, []byte{}, 0)
 	if err != nil {
-		return fmt.Errorf("can't write to control pipe: %s", err)
+		return ser.Errorf(
+			err, "can't write to control pipe")
 	}
 
 	err = command.Wait()

@@ -14,7 +14,7 @@ import (
 	"time"
 
 	"github.com/docopt/docopt-go"
-	"github.com/seletskiy/hierr"
+	"github.com/reconquest/ser-go"
 )
 
 const (
@@ -97,13 +97,18 @@ Destroy options:
 `
 )
 
+func fatal(err error) {
+	fmt.Fprintln(os.Stderr, err.Error())
+	os.Exit(1)
+}
+
 func main() {
 	rand.Seed(time.Now().UnixNano())
 
 	if os.Args[0] == "/.hastur.exec" && len(os.Args) >= 2 {
 		err := execBootstrap()
 		if err != nil {
-			log.Fatal(err)
+			fatal(err)
 		}
 	}
 
@@ -119,7 +124,7 @@ func main() {
 
 	storageEngine, err := createStorageFromSpec(rootDir, storageSpec)
 	if err != nil {
-		log.Fatalf("ERROR: can't init storage: %s", err)
+		fatal(ser.Errorf(err, "can't initialize storage"))
 	}
 
 	switch {
@@ -134,7 +139,7 @@ func main() {
 	}
 
 	if err != nil {
-		log.Fatalf("ERROR: %s", err)
+		fatal(err)
 	}
 }
 
@@ -156,15 +161,17 @@ func execBootstrap() error {
 
 	err := os.Remove(os.Args[1])
 	if err != nil {
-		return fmt.Errorf(
-			"can't remove control file '%s': %s", os.Args[1], err,
+		return ser.Errorf(
+			err,
+			"can't remove control file '%s'", os.Args[1],
 		)
 	}
 
 	err = syscall.Exec(command[0], command[0:], os.Environ())
 	if err != nil {
-		return fmt.Errorf(
-			"can't execute command %q: %s", os.Args[2:], err,
+		return ser.Errorf(
+			err,
+			"can't execute command %q", os.Args[2:],
 		)
 	}
 
@@ -201,18 +208,19 @@ func showBaseDirsInfo(
 
 	baseDirs, err := getBaseDirs(rootDir)
 	if err != nil {
-		return fmt.Errorf(
-			"can't get base dirs from '%s': %s", rootDir, err,
+		return ser.Errorf(
+			err,
+			"can't get base dirs from '%s'", rootDir,
 		)
 	}
 
 	for _, baseDir := range baseDirs {
 		packages, err := listExplicitlyInstalled(baseDir)
 		if err != nil {
-			return fmt.Errorf(
-				"can't list explicitly installed packages in '%s': %s",
-				baseDir,
+			return ser.Errorf(
 				err,
+				"can't list explicitly installed packages in '%s'",
+				baseDir,
 			)
 		}
 
@@ -246,37 +254,38 @@ func createAndStart(
 
 	err := ensureIPv4Forwarding()
 	if err != nil {
-		return fmt.Errorf(
-			"can't enable ipv4 forwarding: %s",
+		return ser.Errorf(
 			err,
+			"can't enable ipv4 forwarding",
 		)
 	}
 
 	bridgeDevice, bridgeAddress := parseBridgeInfo(bridgeInfo)
 	err = ensureBridge(bridgeDevice)
 	if err != nil {
-		return fmt.Errorf(
-			"can't create bridge interface '%s': %s", bridgeDevice, err,
+		return ser.Errorf(
+			err,
+			"can't create bridge interface '%s'", bridgeDevice,
 		)
 	}
 
 	err = ensureBridgeInterfaceUp(bridgeDevice)
 	if err != nil {
-		return fmt.Errorf(
-			"can't set bridge '%s' up: %s",
-			bridgeDevice,
+		return ser.Errorf(
 			err,
+			"can't set bridge '%s' up",
+			bridgeDevice,
 		)
 	}
 
 	if bridgeAddress != "" {
 		err = setupBridge(bridgeDevice, bridgeAddress)
 		if err != nil {
-			return fmt.Errorf(
-				"can't assign address '%s' on bridge '%s': %s",
+			return ser.Errorf(
+				err,
+				"can't assign address '%s' on bridge '%s'",
 				bridgeAddress,
 				bridgeDevice,
-				err,
 			)
 		}
 	}
@@ -284,31 +293,31 @@ func createAndStart(
 	if hostInterface != "" {
 		err := addInterfaceToBridge(hostInterface, bridgeDevice)
 		if err != nil {
-			return fmt.Errorf(
-				"can't bind host's ethernet '%s' to '%s': %s",
+			return ser.Errorf(
+				err,
+				"can't bind host's ethernet '%s' to '%s'",
 				hostInterface,
 				bridgeDevice,
-				err,
 			)
 		}
 
 		err = copyInterfaceAddressToBridge(hostInterface, bridgeDevice)
 		if err != nil {
-			return fmt.Errorf(
-				"can't copy address from host's '%s' to '%s': %s",
+			return ser.Errorf(
+				err,
+				"can't copy address from host's '%s' to '%s'",
 				hostInterface,
 				bridgeDevice,
-				err,
 			)
 		}
 
 		err = copyInterfaceRoutesToBridge(hostInterface, bridgeDevice)
 		if err != nil {
-			return fmt.Errorf(
-				"can't copy routes from host's '%s' to '%s': %s",
+			return ser.Errorf(
+				err,
+				"can't copy routes from host's '%s' to '%s'",
 				hostInterface,
 				bridgeDevice,
-				err,
 			)
 		}
 	}
@@ -343,8 +352,9 @@ func createAndStart(
 		storageEngine,
 	)
 	if err != nil {
-		return fmt.Errorf(
-			"can't create base dir '%s': %s", baseDir, err,
+		return ser.Errorf(
+			err,
+			"can't create base dir '%s'", baseDir,
 		)
 	}
 
@@ -352,8 +362,9 @@ func createAndStart(
 		fmt.Println("Installing packages")
 		err = installPackages(getImageDir(rootDir, baseDir), allPackages)
 		if err != nil {
-			return fmt.Errorf(
-				"can't install packages into '%s': %s", rootDir, err,
+			return ser.Errorf(
+				err,
+				"can't install packages into '%s'", rootDir,
 			)
 		}
 
@@ -362,7 +373,7 @@ func createAndStart(
 			nil, 0644,
 		)
 		if err != nil {
-			return hierr.Errorf(
+			return ser.Errorf(
 				err, "can't create .hastur file in image directory",
 			)
 		}
@@ -370,8 +381,9 @@ func createAndStart(
 
 	err = storageEngine.InitContainer(baseDir, containerName)
 	if err != nil {
-		return fmt.Errorf(
-			"can't create directory layout under '%s': %s", rootDir, err,
+		return ser.Errorf(
+			err,
+			"can't create directory layout under '%s'", rootDir,
 		)
 	}
 
@@ -387,8 +399,9 @@ func createAndStart(
 	if copyingDir != "" {
 		err = copyDir(copyingDir, getImageDir(rootDir, baseDir))
 		if err != nil {
-			return fmt.Errorf(
-				"can't copy %s to container root: %s", copyingDir, err,
+			return ser.Errorf(
+				err,
+				"can't copy %s to container root", copyingDir,
 			)
 		}
 	}
@@ -406,7 +419,7 @@ func createAndStart(
 			os.Exit(err.Sys().(syscall.WaitStatus).ExitStatus())
 		}
 
-		return fmt.Errorf("command execution failed: %s", err)
+		return ser.Errorf(err, "command execution failed")
 	}
 
 	return nil
@@ -418,8 +431,8 @@ func destroyRoot(
 ) error {
 	err := storageEngine.Destroy()
 	if err != nil {
-		return fmt.Errorf(
-			"can't destroy storage: %s", err,
+		return ser.Errorf(
+			err, "can't destroy storage",
 		)
 	}
 
@@ -483,15 +496,15 @@ func createStorageFromSpec(rootDir, storageSpec string) (storage, error) {
 	}
 
 	if err != nil {
-		return nil, fmt.Errorf(
-			"can't create storage '%s': %s", storageSpec, err,
+		return nil, ser.Errorf(
+			err, "can't create storage '%s'", storageSpec,
 		)
 	}
 
 	err = storageEngine.Init()
 	if err != nil {
-		return nil, fmt.Errorf(
-			"can't init storage '%s': %s", storageSpec, err,
+		return nil, ser.Errorf(
+			err, "can't init storage '%s'", storageSpec,
 		)
 	}
 

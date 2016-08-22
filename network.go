@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"errors"
 	"fmt"
 	"io/ioutil"
 	"math"
@@ -10,18 +11,21 @@ import (
 	"os/exec"
 	"strings"
 	"time"
+
+	"github.com/kovetskiy/executil"
+	"github.com/reconquest/ser-go"
 )
 
 func ensureBridge(bridge string) error {
 	command := exec.Command("brctl", "addbr", bridge)
-	output, err := command.CombinedOutput()
+	_, stderr, err := executil.Run(command)
 	if err != nil {
 		prefix := fmt.Sprintf("device %s already exists;", bridge)
-		if strings.HasPrefix(string(output), prefix) {
+		if strings.HasPrefix(string(stderr), prefix) {
 			return nil
 		}
 
-		return formatExecError(command, err, output)
+		return err
 	}
 
 	return nil
@@ -29,9 +33,9 @@ func ensureBridge(bridge string) error {
 
 func ensureBridgeInterfaceUp(bridge string) error {
 	command := exec.Command("ip", "link", "set", "dev", bridge, "up")
-	output, err := command.CombinedOutput()
+	_, _, err := executil.Run(command)
 	if err != nil {
-		return formatExecError(command, err, output)
+		return err
 	}
 
 	return nil
@@ -41,7 +45,9 @@ func ensureIPv4Forwarding() error {
 	fileIpForward := "/proc/sys/net/ipv4/ip_forward"
 	valueIpForward, err := ioutil.ReadFile(fileIpForward)
 	if err != nil {
-		return err
+		return ser.Errorf(
+			err, "can't read file %s", fileIpForward,
+		)
 	}
 
 	if strings.Contains(string(valueIpForward), "0") {
@@ -50,7 +56,9 @@ func ensureIPv4Forwarding() error {
 			os.FileMode(0644),
 		)
 		if err != nil {
-			return err
+			return ser.Errorf(
+				err, "can't write '1' to file %s", fileIpForward,
+			)
 		}
 	}
 
@@ -59,9 +67,9 @@ func ensureIPv4Forwarding() error {
 
 func copyInterfaceRoutesToBridge(iface, bridge string) error {
 	command := exec.Command("ip", "route", "show", "dev", iface)
-	output, err := command.CombinedOutput()
+	output, _, err := executil.Run(command)
 	if err != nil {
-		return formatExecError(command, err, output)
+		return err
 	}
 
 	rawIPOutput := strings.Split(string(output), "\n")
@@ -101,16 +109,16 @@ func execIpRoute(action string, iface string, args ...string) error {
 		)...,
 	)
 
-	output, err := command.CombinedOutput()
+	_, stderr, err := executil.Run(command)
 	if err != nil {
 		if bytes.HasPrefix(
-			output,
+			stderr,
 			[]byte("RTNETLINK answers: File exists"),
 		) {
 			return nil
 		}
 
-		return formatExecError(command, err, output)
+		return err
 	}
 
 	return nil
@@ -119,13 +127,17 @@ func execIpRoute(action string, iface string, args ...string) error {
 func copyInterfaceAddressToBridge(iface string, bridge string) error {
 	addrs, err := getHostIPs(iface)
 	if err != nil {
-		return err
+		return ser.Errorf(
+			err, "can't get host ip addresses for interface %s", iface,
+		)
 	}
 
 	for _, addr := range addrs {
 		ip, _, err := net.ParseCIDR(addr.String())
 		if err != nil {
-			return err
+			return ser.Errorf(
+				err, "can't parse net address '%s'", addr.String(),
+			)
 		}
 		if ip.To4() == nil {
 			continue
@@ -138,16 +150,16 @@ func copyInterfaceAddressToBridge(iface string, bridge string) error {
 			"dev", bridge, addr.String(),
 			"broadcast", broadcast.String(),
 		)
-		output, err := command.CombinedOutput()
+		_, stderr, err := executil.Run(command)
 		if err != nil {
 			if bytes.HasPrefix(
-				output,
+				stderr,
 				[]byte("RTNETLINK answers: File exists"),
 			) {
 				return nil
 			}
 
-			return formatExecError(command, err, output)
+			return err
 		}
 	}
 
@@ -156,14 +168,14 @@ func copyInterfaceAddressToBridge(iface string, bridge string) error {
 
 func addInterfaceToBridge(iface, bridge string) error {
 	command := exec.Command("brctl", "addif", bridge, iface)
-	output, err := command.CombinedOutput()
+	_, stderr, err := executil.Run(command)
 	if err != nil {
 		prefix := fmt.Sprintf("device %s is already a member", iface)
-		if strings.HasPrefix(string(output), prefix) {
+		if strings.HasPrefix(string(stderr), prefix) {
 			return nil
 		}
 
-		return formatExecError(command, err, output)
+		return err
 	}
 
 	return nil
@@ -171,9 +183,9 @@ func addInterfaceToBridge(iface, bridge string) error {
 
 func getContainerIP(containerName string) (string, error) {
 	command := exec.Command("ip", "-n", containerName, "addr", "show", "host0")
-	output, err := command.CombinedOutput()
+	output, _, err := executil.Run(command)
 	if err != nil {
-		return "", formatExecError(command, err, output)
+		return "", err
 	}
 
 	rawIPOutput := strings.Split(string(output), "\n")
@@ -182,7 +194,9 @@ func getContainerIP(containerName string) (string, error) {
 		if strings.HasPrefix(trimmedLine, "inet ") {
 			inet := strings.Fields(trimmedLine)
 			if len(inet) < 2 {
-				return "", fmt.Errorf("invalid output from ip: %s", line)
+				return "", fmt.Errorf(
+					"invalid output from ip: %q", line,
+				)
 			}
 
 			return inet[1], nil
@@ -224,13 +238,13 @@ func addDefaultRoute(namespace string, dev string, gateway string) error {
 
 	command := exec.Command("ip", args...)
 
-	output, err := command.CombinedOutput()
+	_, stderr, err := executil.Run(command)
 	if err != nil {
-		if bytes.HasPrefix(output, []byte("RTNETLINK answers: File exists")) {
+		if bytes.HasPrefix(stderr, []byte("RTNETLINK answers: File exists")) {
 			return nil
 		}
 
-		return formatExecError(command, err, output)
+		return err
 	}
 
 	return nil
@@ -244,13 +258,13 @@ func ensureAddress(namespace string, address string, dev string) error {
 
 	command := exec.Command("ip", args...)
 
-	output, err := command.CombinedOutput()
+	_, stderr, err := executil.Run(command)
 	if err != nil {
-		if bytes.HasPrefix(output, []byte("RTNETLINK answers: File exists")) {
+		if bytes.HasPrefix(stderr, []byte("RTNETLINK answers: File exists")) {
 			return nil
 		}
 
-		return formatExecError(command, err, output)
+		return err
 	}
 
 	return nil
@@ -266,13 +280,13 @@ func cleanupNetworkInterface(name string) error {
 
 	command := exec.Command("ip", args...)
 
-	output, err := command.CombinedOutput()
+	_, stderr, err := executil.Run(command)
 	if err != nil {
-		if bytes.HasPrefix(output, []byte("Cannot find device")) {
+		if bytes.HasPrefix(stderr, []byte("Cannot find device")) {
 			return nil
 		}
 
-		return formatExecError(command, err, output)
+		return err
 	}
 
 	return nil
@@ -287,9 +301,9 @@ func upInterface(namespace string, dev string) error {
 		"ip", "-n", namespace, "link", "set", "up", dev,
 	)
 
-	output, err := command.CombinedOutput()
+	_, _, err := executil.Run(command)
 	if err != nil {
-		return formatExecError(command, err, output)
+		return err
 	}
 
 	return nil
@@ -344,7 +358,7 @@ func getHostIPs(interfaceName string) ([]net.Addr, error) {
 	}
 
 	if len(addrs) == 0 {
-		return nil, fmt.Errorf("no ip addresses assigned to interface")
+		return nil, errors.New("no ip addresses assigned to interface")
 	}
 
 	return addrs, nil

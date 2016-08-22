@@ -1,11 +1,12 @@
 package main
 
 import (
-	"fmt"
 	"io"
 	"io/ioutil"
 	"os"
 	"path/filepath"
+
+	"github.com/reconquest/ser-go"
 )
 
 func copyFile(src string, dest string) error {
@@ -33,7 +34,9 @@ func copyFile(src string, dest string) error {
 
 	err = os.Chmod(dest, stat.Mode())
 	if err != nil {
-		return err
+		return ser.Errorf(
+			err, "can't change file mode: %s", dest,
+		)
 	}
 
 	return nil
@@ -46,12 +49,16 @@ func copyDir(src string, dest string) (err error) {
 	}
 
 	if !srcStat.IsDir() {
-		return fmt.Errorf("%s is not directory", src)
+		return ser.Errorf(
+			err, "%s is not directory", src,
+		)
 	}
 
 	err = os.MkdirAll(dest, srcStat.Mode())
 	if err != nil {
-		return fmt.Errorf("can't mkdir %s: %s", dest)
+		return ser.Errorf(
+			err, "can't mkdir %s", dest,
+		)
 	}
 
 	entries, err := ioutil.ReadDir(src)
@@ -67,8 +74,9 @@ func copyDir(src string, dest string) (err error) {
 		}
 
 		if err != nil {
-			return fmt.Errorf(
-				"can't copy  %s -> %s: %s", srcEntry, destEntry, err,
+			return ser.Errorf(
+				err,
+				"can't copy %s -> %s", srcEntry, destEntry,
 			)
 		}
 	}

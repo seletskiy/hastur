@@ -1,10 +1,12 @@
 package main
 
 import (
-	"fmt"
+	"errors"
 	"os/exec"
 	"path/filepath"
 	"strings"
+
+	"github.com/kovetskiy/executil"
 )
 
 type zfsStorage struct {
@@ -14,9 +16,9 @@ type zfsStorage struct {
 
 func doZFSCommand(parameters ...string) error {
 	command := exec.Command("zfs", parameters...)
-	output, err := command.CombinedOutput()
+	_, _, err := executil.Run(command)
 	if err != nil {
-		return formatExecError(command, err, output)
+		return err
 	}
 
 	return nil
@@ -32,8 +34,8 @@ func NewZFSStorage(rootDir, spec string) (storage, error) {
 	}
 
 	if pool == "" {
-		return nil, fmt.Errorf(
-			`pool name should be specified`,
+		return nil, errors.New(
+			"pool name should be specified",
 		)
 	}
 

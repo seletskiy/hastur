@@ -1,15 +1,19 @@
 package main
 
-import "os/exec"
+import (
+	"os/exec"
+
+	"github.com/kovetskiy/executil"
+)
 
 func addPostroutingMasquarading(dev string) error {
 	args := []string{"-t", "nat", "-A", "POSTROUTING", "-o", dev,
 		"-j", "MASQUERADE"}
 
 	command := exec.Command("iptables", args...)
-	output, err := command.CombinedOutput()
+	_, _, err := executil.Run(command)
 	if err != nil {
-		return formatExecError(command, err, output)
+		return err
 	}
 
 	return nil
@@ -20,9 +24,9 @@ func removePostroutingMasquarading(dev string) error {
 		"-j", "MASQUERADE"}
 
 	command := exec.Command("iptables", args...)
-	output, err := command.CombinedOutput()
+	_, _, err := executil.Run(command)
 	if err != nil {
-		return formatExecError(command, err, output)
+		return err
 	}
 
 	return nil

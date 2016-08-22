@@ -5,6 +5,8 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+
+	"github.com/reconquest/ser-go"
 )
 
 const defaultOverlayFSSize = "1G"
@@ -32,8 +34,9 @@ func NewOverlayFSStorage(rootDir, spec string) (storage, error) {
 func (storage *overlayFSStorage) Init() error {
 	FSType, err := getFSType(storage.rootDir)
 	if err != nil {
-		return fmt.Errorf(
-			"can't get FS type for '%s': %s", storage.rootDir, err,
+		return ser.Errorf(
+			err,
+			"can't get FS type for '%s'", storage.rootDir,
 		)
 	}
 
@@ -94,9 +97,10 @@ func (storage *overlayFSStorage) InitContainer(
 		containerRoot,
 	)
 	if err != nil {
-		return fmt.Errorf(
-			"can't mount overlay fs [%s] for '%s': %s",
-			baseDir, containerName, err,
+		return ser.Errorf(
+			err,
+			"can't mount overlay fs [%s] for '%s'",
+			baseDir, containerName,
 		)
 	}
 
@@ -126,24 +130,27 @@ func (storage *overlayFSStorage) DestroyContainer(containerName string) error {
 func (storage *overlayFSStorage) fixUnsupportedFS() error {
 	tmpfsMounted, err := isMounted("tmpfs", storage.rootDir)
 	if err != nil {
-		return fmt.Errorf(
-			"can't check is tmpfs mounted on '%s': %s", storage.rootDir, err,
+		return ser.Errorf(
+			err,
+			"can't check is tmpfs mounted on '%s'", storage.rootDir,
 		)
 	}
 
 	if !tmpfsMounted {
 		err := os.MkdirAll(storage.rootDir, 0644)
 		if err != nil {
-			return fmt.Errorf(
-				"can't create directory for tmpfs mountpoint: %s", err,
+			return ser.Errorf(
+				err,
+				"can't create directory for tmpfs mountpoint",
 			)
 		}
 
 		err = mountTmpfs(storage.rootDir, storage.tmpfsSize)
 		if err != nil {
-			return fmt.Errorf(
-				"can't mount tmpfs of size %s on '%s': %s",
-				storage.tmpfsSize, storage.rootDir, err,
+			return ser.Errorf(
+				err,
+				"can't mount tmpfs of size %s on '%s'",
+				storage.tmpfsSize, storage.rootDir,
 			)
 		}
 	}

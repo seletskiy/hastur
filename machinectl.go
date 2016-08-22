@@ -5,15 +5,18 @@ import (
 	"os/exec"
 	"strconv"
 	"strings"
+
+	"github.com/kovetskiy/executil"
+	"github.com/reconquest/ser-go"
 )
 
 func listActiveContainers(
 	containerSuffix string,
 ) (map[string]struct{}, error) {
 	command := exec.Command("machinectl", "--no-legend")
-	output, err := command.CombinedOutput()
+	output, _, err := executil.Run(command)
 	if err != nil {
-		return nil, formatExecError(command, err, output)
+		return nil, err
 	}
 
 	containers := map[string]struct{}{}
@@ -42,9 +45,9 @@ func listActiveContainers(
 
 func getContainerLeaderPID(name string) (int, error) {
 	command := exec.Command("machinectl", "show", name+containerSuffix)
-	output, err := command.CombinedOutput()
+	output, _, err := executil.Run(command)
 	if err != nil {
-		return 0, formatExecError(command, err, output)
+		return 0, err
 	}
 
 	config := strings.Split(string(output), "\n")
@@ -52,10 +55,10 @@ func getContainerLeaderPID(name string) (int, error) {
 		if strings.HasPrefix(line, "Leader=") {
 			pid, err := strconv.Atoi(strings.Split(line, "=")[1])
 			if err != nil {
-				return 0, fmt.Errorf(
-					"can't convert Leader value from '%s' to PID: '%s'",
-					line,
+				return 0, ser.Errorf(
 					err,
+					"can't convert Leader value from '%s' to PID",
+					line,
 				)
 			}
 
@@ -63,5 +66,7 @@ func getContainerLeaderPID(name string) (int, error) {
 		}
 	}
 
-	return 0, fmt.Errorf("PID info is not found in machinectl show '%s'", name)
+	return 0, fmt.Errorf(
+		"PID info is not found in machinectl show '%s'", name,
+	)
 }

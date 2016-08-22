@@ -8,14 +8,15 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/seletskiy/hierr"
+	"github.com/kovetskiy/executil"
+	"github.com/reconquest/ser-go"
 )
 
 func getFSType(root string) (string, error) {
 	command := exec.Command("findmnt", "-o", "fstype", "-nfT", root)
-	output, err := command.CombinedOutput()
+	output, _, err := executil.Run(command)
 	if err != nil {
-		return "", formatExecError(command, err, output)
+		return "", err
 	}
 
 	return strings.TrimSpace(string(output)), nil
@@ -35,7 +36,7 @@ func createBaseDirForPackages(
 	if isExists(imageDir) && !isExists(imageDir, ".hastur") {
 		err = storageEngine.DeInitImage(imageName)
 		if err != nil {
-			return false, "", hierr.Errorf(
+			return false, "", ser.Errorf(
 				err, "can't deinitialize image %s", imageName,
 			)
 		}
@@ -44,7 +45,7 @@ func createBaseDirForPackages(
 	if !isExists(imageDir) {
 		err = storageEngine.InitImage(imageName)
 		if err != nil {
-			return false, "", hierr.Errorf(
+			return false, "", ser.Errorf(
 				err, "can't initialize image %s", imageName,
 			)
 		}
@@ -58,14 +59,15 @@ func createBaseDirForPackages(
 func installBootstrapExecutable(root string, target string) error {
 	path, err := os.Readlink("/proc/self/exe")
 	if err != nil {
-		return err
+		return ser.Errorf(
+			err, "can't read link to /proc/self/exe",
+		)
 	}
 
 	command := exec.Command("cp", path, filepath.Join(root, target))
-
-	output, err := command.CombinedOutput()
+	_, _, err = executil.Run(command)
 	if err != nil {
-		return formatExecError(command, err, output)
+		return err
 	}
 
 	return nil
@@ -106,12 +108,10 @@ func getBaseDirs(rootDir string) ([]string, error) {
 }
 
 func removeContainerDir(containerDir string) error {
-	cmd := exec.Command("rm", "-rf", containerDir)
-	output, err := cmd.CombinedOutput()
+	command := exec.Command("rm", "-rf", containerDir)
+	_, _, err := executil.Run(command)
 	if err != nil {
-		return fmt.Errorf(
-			"can't remove dir %s: %s\n%s", containerDir, err, output,
-		)
+		return err
 	}
 
 	return nil

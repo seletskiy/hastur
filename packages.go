@@ -6,6 +6,8 @@ import (
 	"os/exec"
 	"path/filepath"
 	"strings"
+
+	"github.com/kovetskiy/executil"
 )
 
 func installPackages(target string, packages []string) error {
@@ -15,9 +17,13 @@ func installPackages(target string, packages []string) error {
 	command.Stdout = os.Stderr
 	command.Stderr = os.Stderr
 
-	err := command.Run()
+	_, _, err := executil.Run(
+		command,
+		executil.IgnoreStderr,
+		executil.IgnoreStdout,
+	)
 	if err != nil {
-		return formatExecError(command, err, nil)
+		return err
 	}
 
 	err = ioutil.WriteFile(filepath.Join(target, ".packages"), []byte(
