@@ -20,7 +20,7 @@ import (
 const (
 	containerSuffix = `.hastur`
 	defaultPackages = `bash,coreutils,iproute2,iputils,libidn,nettle`
-	version         = `3.1`
+	version         = `3.3`
 	usage           = `hastur the unspeakable - zero-conf systemd container manager.
 
 hastur is a simple wrapper around systemd-nspawn, that will start container
