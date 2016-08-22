@@ -21,7 +21,7 @@ func isMounted(device, mountpoint string) (bool, error) {
 	command := exec.Command("findmnt", device, absPath)
 	_, _, err = executil.Run(command)
 	if err != nil {
-		if _, ok := err.(*exec.ExitError); ok {
+		if executil.IsExitError(err) {
 			return false, nil
 		}
 

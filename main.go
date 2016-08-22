@@ -7,13 +7,13 @@ import (
 	"math/rand"
 	"net"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"strings"
 	"syscall"
 	"time"
 
 	"github.com/docopt/docopt-go"
+	"github.com/kovetskiy/executil"
 	"github.com/reconquest/ser-go"
 )
 
@@ -415,8 +415,8 @@ func createAndStart(
 	)
 
 	if err != nil {
-		if err, ok := err.(*exec.ExitError); ok {
-			os.Exit(err.Sys().(syscall.WaitStatus).ExitStatus())
+		if executil.IsExitError(err) {
+			os.Exit(executil.GetExitStatus(err))
 		}
 
 		return ser.Errorf(err, "command execution failed")
