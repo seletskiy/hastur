@@ -53,7 +53,7 @@ func queryContainers(
 		container := container{
 			Name:    name,
 			Status:  "inactive",
-			Root:    filepath.Join(rootDir, "containers", name),
+			Root:    storageEngine.GetContainerRoot(name),
 			Address: "",
 		}
 
