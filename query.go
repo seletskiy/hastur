@@ -77,8 +77,9 @@ func queryContainers(
 		for _, container := range containers {
 			fmt.Fprintf(
 				writer,
-				"%s\t%s\t%s\n",
-				container.Name, container.Status, container.Address,
+				"%s\t%s\t%s\t%s\n",
+				container.Name, container.Status,
+				container.Address, container.Root,
 			)
 		}
 
