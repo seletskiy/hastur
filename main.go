@@ -183,7 +183,7 @@ func destroyContainer(
 	storageEngine storage,
 ) error {
 	var (
-		containerName = args["<name>"].(string)
+		containerName = args["<name>"].([]string)[0]
 	)
 
 	err := storageEngine.DestroyContainer(containerName)
