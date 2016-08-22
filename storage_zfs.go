@@ -101,7 +101,7 @@ func (storage *zfsStorage) InitContainer(
 	containerName string,
 ) error {
 	err := doZFSCommand(
-		"snapshot",
+		"list",
 		filepath.Join(
 			storage.pool,
 			getImageDir(storage.rootDir, baseDir),
@@ -109,15 +109,21 @@ func (storage *zfsStorage) InitContainer(
 	)
 
 	if err != nil {
-		return err
+		err := doZFSCommand(
+			"snapshot",
+			filepath.Join(
+				storage.pool,
+				getImageDir(storage.rootDir, baseDir),
+			)+"@"+containerName,
+		)
+
+		if err != nil {
+			return err
+		}
 	}
 
 	err = doZFSCommand(
-		"clone",
-		filepath.Join(
-			storage.pool,
-			getImageDir(storage.rootDir, baseDir),
-		)+"@"+containerName,
+		"list",
 		filepath.Join(
 			storage.pool,
 			getContainerDir(storage.rootDir, containerName),
@@ -125,7 +131,21 @@ func (storage *zfsStorage) InitContainer(
 	)
 
 	if err != nil {
-		return err
+		err = doZFSCommand(
+			"clone",
+			filepath.Join(
+				storage.pool,
+				getImageDir(storage.rootDir, baseDir),
+			)+"@"+containerName,
+			filepath.Join(
+				storage.pool,
+				getContainerDir(storage.rootDir, containerName),
+			),
+		)
+
+		if err != nil {
+			return err
+		}
 	}
 
 	return nil
