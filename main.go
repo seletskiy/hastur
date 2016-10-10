@@ -13,7 +13,7 @@ import (
 	"time"
 
 	"github.com/docopt/docopt-go"
-	"github.com/kovetskiy/executil"
+	"github.com/reconquest/executil-go"
 	"github.com/reconquest/ser-go"
 )
 

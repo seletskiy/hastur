@@ -6,7 +6,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/kovetskiy/executil"
+	"github.com/reconquest/executil-go"
 )
 
 type zfsStorage struct {
