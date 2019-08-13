@@ -108,6 +108,7 @@ func nspawn(
 	}
 
 	args := []string{
+		"--pipe",
 		"-M", containerName + containerSuffix,
 		"-D", storageEngine.GetContainerRoot(containerName),
 	}
