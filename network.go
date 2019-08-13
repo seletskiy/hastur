@@ -282,7 +282,7 @@ func cleanupNetworkInterface(name string) error {
 
 	_, stderr, err := executil.Run(command)
 	if err != nil {
-		if bytes.HasPrefix(stderr, []byte("Cannot find device")) {
+		if bytes.Contains(stderr, []byte("Cannot find device")) {
 			return nil
 		}
 
