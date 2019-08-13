@@ -6,6 +6,8 @@ import (
 	"os"
 	"path/filepath"
 	"text/tabwriter"
+
+	"github.com/reconquest/karma-go"
 )
 
 type container struct {
@@ -62,10 +64,10 @@ func queryContainers(
 			container.Status = "active"
 			container.Address, err = getContainerIP(name)
 			if err != nil {
-				fmt.Fprintf(os.Stderr,
-					"WARNING: can't obtain container '%s' address\n",
+				fmt.Fprintln(os.Stderr, karma.Format(err,
+					"WARNING: can't obtain container '%s' address",
 					name,
-				)
+				))
 			}
 		}
 
