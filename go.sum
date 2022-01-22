@@ -1,0 +1,14 @@
+github.com/docopt/docopt-go v0.0.0-20180111231733-ee0de3bc6815 h1:bWDMxwH3px2JBh6AyO7hdCn/PkvCZXii8TGj7sbtEbQ=
+github.com/docopt/docopt-go v0.0.0-20180111231733-ee0de3bc6815/go.mod h1:WwZ+bS3ebgob9U8Nd0kOddGdZWjyMGR8Wziv+TBNwSE=
+github.com/reconquest/executil-go v0.0.0-20181110204642-1f5c2d67813f h1:z1ngdCBGkIqhguiSVsn7VI/PLzGnC6r1JClA4iv+5hA=
+github.com/reconquest/executil-go v0.0.0-20181110204642-1f5c2d67813f/go.mod h1:63UJzHtKBhZ2qo6JzQFn8wOG8bNXextZyVOjlXUE+9I=
+github.com/reconquest/hierr-go v0.0.0-20170824213838-7d09c0176fd2 h1:v3ctQXyIHprCI7s42LGmMYbulnnpjeD4zcvq78D1ung=
+github.com/reconquest/hierr-go v0.0.0-20170824213838-7d09c0176fd2/go.mod h1:dF8sYs86hXr+kKjDVvxDZYMUsTm5yr0PFQqLer/xsrk=
+github.com/reconquest/karma-go v0.0.0-20211029072727-6027c6225ce4 h1:HuM4N4Zliq6nyqRXLl/NJpQxIaxVdhJ9TXoW8rrTWuo=
+github.com/reconquest/karma-go v0.0.0-20211029072727-6027c6225ce4/go.mod h1:0SJV7OD+RmNxn0wsLWXQIVYiKS3szqhFv5PQvjLX2Ds=
+github.com/reconquest/ser-go v0.0.0-20181114141834-0d1f485292ce h1:bNhTHXC0NX1wo3nGVdM6LZL+90Qx1NVBYDlw9+H9IMw=
+github.com/reconquest/ser-go v0.0.0-20181114141834-0d1f485292ce/go.mod h1:H3Pgo5dsVfGXxKBNju4XnzDKLcejXSgBY7y5t+LDk24=
+golang.org/x/crypto v0.0.0-20220112180741-5e0467b6c7ce h1:Roh6XWxHFKrPgC/EQhVubSAGQ6Ozk6IdxHSzt1mR0EI=
+golang.org/x/crypto v0.0.0-20220112180741-5e0467b6c7ce/go.mod h1:IxCIyHEi3zRg3s0A5j5BB6A9Jmi73HwBIUl50j+osU4=
+golang.org/x/sys v0.0.0-20210615035016-665e8c7367d1 h1:SrN+KX8Art/Sf4HNj6Zcz06G7VEz+7w9tdXTPOZ7+l4=
+golang.org/x/sys v0.0.0-20210615035016-665e8c7367d1/go.mod h1:oPkhp1MJrh7nUepCBck5+mAzfO9JrbApNNgaTdGDITg=
