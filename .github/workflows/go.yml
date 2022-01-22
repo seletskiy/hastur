@@ -22,3 +22,4 @@ jobs:
       run: go build -v ./...
 
     - run: ls -la
+    - run: sudo ./hastur -S ls
